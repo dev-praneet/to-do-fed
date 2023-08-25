@@ -1,0 +1,37 @@
+// Mobile First Approach
+$breakpoints: (
+    'mobile': (
+        min-width: 360px,
+    ),
+    'tab': (
+        min-width: 768px,
+    ),
+    'sm-laptop': (
+        min-width: 1025px,
+    ),
+    'laptop': (
+        min-width: 1290px,
+    ),
+    'large': (
+        min-width: 1440px,
+    ),
+    'xl-screen': (
+        min-width: 1790px,
+    ),
+) !default;
+
+@mixin breakpoints($breakpoint) {
+    // If the key exists in the map
+    @if map-has-key($breakpoints, $breakpoint) {
+        // Prints a media query based on the value
+        @media #{inspect(map-get($breakpoints, $breakpoint))} {
+            @content;
+        }
+    }
+
+    // If the key doesn't exist in the map
+    @else {
+        @warn "Unfortunately, no value could be retrieved from `#{$breakpoint}`. "
+          + "Available breakpoints are: #{map-keys($breakpoints)}.";
+    }
+}
