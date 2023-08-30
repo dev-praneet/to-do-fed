@@ -1,5 +1,6 @@
 import type { NextPage } from 'next'
 import Head from "next/head";
+import Homepage from "../container/Homepage";
 
 const Home: NextPage = () => {
   return (
@@ -9,9 +10,7 @@ const Home: NextPage = () => {
         <meta name="To Do App" content="A to do app" />
       </Head>
 
-      <main>
-        <span>Hello there!</span>
-      </main>
+      <Homepage />
     </div>
   );
 };

@@ -1,0 +1,63 @@
+@use 'styles/theme' as *;
+
+.mainContainer {
+    border: 2px solid red;
+    padding-inline: var(--padding-inline);
+    height: 100vh;
+}
+
+.container {
+    display: flex;
+    height: 100%;
+}
+
+.sidebar {
+    flex-basis: 200px;
+    padding-inline: 10px;
+
+    background-color: var(--primary-bg-light);
+}
+
+.taskContainer {
+    flex-grow: 1;
+
+    background-color: var(--primary-bg-dark);
+}
+
+.pageName {
+    display: flex;
+    width: 100%;
+    padding-block: 5px;
+    cursor: pointer;
+
+    > span {
+        margin-inline: auto;
+    }
+    
+& + & {
+    margin-top: 10px;
+}
+
+    &:hover {
+        background-color: var(--primary-bg-light-hover);
+    }
+}
+
+.addAPage {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin-top: 10px;
+    padding-block: 5px;
+    width: 100%;
+    cursor: pointer;
+
+     &:hover {
+        background-color: var(--primary-bg-light-hover);
+    }
+}
+
+.plusWrapper {
+    display: flex;
+    margin-right: 10px;
+}

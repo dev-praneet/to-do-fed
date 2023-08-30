@@ -1,18 +1,33 @@
+@use './breakpoints' as *;
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0; 
+}
+
 html,
 body {
   padding: 0;
   margin: 0;
   font-family: -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Oxygen,
     Ubuntu, Cantarell, Fira Sans, Droid Sans, Helvetica Neue, sans-serif;
+
+    --padding-inline: 20px;
+    
+    @include breakpoints('sm-laptop') {
+        --padding-inline: 30px;
+
+    }
+
+    --primary-bg-light: rgb(155, 155, 155);
+    --primary-bg-light-hover: rgba(255, 255, 255, 0.055);
+    --primary-bg-dark: rgb(37, 37, 37);
 }
 
 a {
   color: inherit;
   text-decoration: none;
-}
-
-* {
-  box-sizing: border-box;
 }
 
 .invisible {
