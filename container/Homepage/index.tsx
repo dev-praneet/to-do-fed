@@ -1,15 +1,33 @@
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
-import { getToDo } from "../../queries/getToDo";
+import { addPage, getToDo } from "../../queries/getToDo";
 import { plus } from "../../public/svg/images";
 
 import style from "./style.module.scss";
+import { useState } from "react";
 
 function Homepage() {
-  const query = useQuery({ queryKey: [], queryFn: getToDo });
+  const [activePage, setActivePage] = useState(null);
+
+  const query = useQuery({ queryKey: ["pages"], queryFn: getToDo });
   const { data, isLoading } = query;
 
   function onPageClick() {}
+
+  const queryClient = useQueryClient();
+
+  const mutation = useMutation({
+    mutationFn: addPage,
+    onSuccess: (res) => {
+      queryClient.setQueryData(["pages"], (old) => {
+        return { ...old, pages: [...old.pages, res.page] };
+      });
+    },
+  });
+
+  function addPageHandler() {
+    mutation.mutate();
+  }
 
   return (
     <div className={style.mainContainer}>
@@ -20,7 +38,7 @@ function Homepage() {
             data?.pages.map((page) => {
               return (
                 <button
-                  key={page.name}
+                  key={page.id}
                   className={style.pageName}
                   onClick={onPageClick}
                 >
@@ -29,7 +47,11 @@ function Homepage() {
               );
             })}
 
-          <button className={style.addAPage}>
+          <button
+            className={style.addAPage}
+            onClick={addPageHandler}
+            disabled={mutation.isLoading}
+          >
             <span className={style.plusWrapper}>{plus}</span>
             <span>Add a page</span>
           </button>
