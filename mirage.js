@@ -1,23 +1,55 @@
-import { default as x, createServer, Model } from "miragejs";
+import {
+  createServer,
+  Model,
+  hasMany,
+  belongsTo,
+  JSONAPISerializer,
+  RestSerializer,
+} from "miragejs";
+
+const ApplicationSerializer = RestSerializer.extend({});
 
 export function makeServer({ environment = "test" } = {}) {
   const server = createServer({
     environment,
     models: {
-      page: Model,
+      page: Model.extend({
+        notes: hasMany(),
+      }),
+      note: Model.extend({
+        page: belongsTo(),
+      }),
+    },
+    serializers: {
+      application: ApplicationSerializer,
+      includeNotes: ApplicationSerializer.extend({
+        include: ["notes"],
+      }),
     },
 
     seeds(server) {
-      server.create("page", { name: "Tasks" });
-      server.create("page", { name: "Articles" });
-      server.create("page", { name: "Links" });
-      server.create("page", { name: "Finance" });
-      server.create("page", { name: "Books" });
-      server.create("page", { name: "Health" });
+      const pages = [
+        "Tasks",
+        "Articles",
+        "Links",
+        "Finance",
+        "Books",
+        "Health",
+      ];
+      pages.forEach((page) => {
+        const createdPage = server.create("page", { name: page });
+        Array.from({ length: 5 }).forEach((_, index) => {
+          server.create("note", {
+            title: `${page} note ${index}`,
+            page: createdPage,
+          });
+        });
+      });
     },
 
     routes() {
       this.namespace = "/api";
+      this.timing = 2000;
 
       this.get("/pages", (schema) => {
         return schema.pages.all();
@@ -25,6 +57,15 @@ export function makeServer({ environment = "test" } = {}) {
 
       this.post("/page/new", (schema, req) => {
         return schema.pages.create({ name: "untitled" });
+      });
+
+      this.get("/page/:id", function (schema, req) {
+        const {
+          params: { id },
+        } = req;
+        const pageData = schema.pages.find(id);
+        const serializedPageData = this.serialize(pageData, "include-notes");
+        return serializedPageData;
       });
 
       // resets the namespace to the root
