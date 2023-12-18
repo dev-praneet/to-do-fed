@@ -56,7 +56,7 @@ export function makeServer({ environment = "test" } = {}) {
       });
 
       this.post("/page/new", (schema, req) => {
-        return schema.pages.create({ name: "untitled" });
+        return schema.pages.create({ name: "" });
       });
 
       this.get("/page/:id", function (schema, req) {

@@ -54,14 +54,24 @@ const menuMachine = createMachine(
                 },
               }),
             ],
-            target: "notesFetched",
+            target: "idle",
           },
         },
       },
-      notesFetched: {
+      idle: {
         on: {
           CREATE: {
             target: "addingPage",
+          },
+          SET_ACTIVE_PAGE: {
+            actions: assign({
+              activePage: ({ event }) => {
+                const {
+                  payload: { id },
+                } = event;
+                return id;
+              },
+            }),
           },
         },
       },
@@ -74,13 +84,19 @@ const menuMachine = createMachine(
                 pages: ({ context, event }) => {
                   const {
                     output: { page },
-                  } = event as any;
+                  } = event;
                   const { pages } = context;
                   return [...pages, page];
                 },
+                activePage: ({ event }) => {
+                  const {
+                    output: { page },
+                  } = event;
+                  return page.id;
+                },
               }),
             ],
-            target: "pageAdded",
+            target: "idle",
           },
         },
       },

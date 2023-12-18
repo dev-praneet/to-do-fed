@@ -3,6 +3,7 @@ import { useMachine } from "@xstate/react";
 
 import { plus } from "../../public/svg/images";
 import menuMachine from "../../machines/homepage";
+import NotesContainer from "./NotesContainer";
 
 import style from "./style.module.scss";
 
@@ -12,12 +13,23 @@ function Homepage() {
   const { activePage, pages } = context;
 
   function onPageClick(id: string) {
-    return function () {};
+    return function () {
+      send({
+        type: "SET_ACTIVE_PAGE",
+        payload: {
+          id,
+        },
+      });
+    };
   }
 
   function addPageHandler() {
     send({ type: "CREATE" });
   }
+
+  const pageData = {
+    title: pages.find((page) => page.id === activePage)?.name,
+  };
 
   return (
     <div className={style.mainContainer}>
@@ -34,7 +46,7 @@ function Homepage() {
                   })}
                   onClick={onPageClick(page.id)}
                 >
-                  <span>{page.name}</span>
+                  <span>{page.name || "untitled"}</span>
                 </button>
               );
             })}
@@ -49,7 +61,7 @@ function Homepage() {
           </button>
         </div>
         <div className={style.taskContainer}>
-          {/* <NotesContainer pageData={pageData} /> */}
+          <NotesContainer pageData={pageData} />
         </div>
       </div>
     </div>
