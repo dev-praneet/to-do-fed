@@ -1,13 +1,13 @@
 import { assign, createMachine, fromCallback, fromPromise } from "xstate";
+
 import callAPI from "../utils/callAPI";
+import debounceMachine from "./debounce";
 
 export function getToDo(): Promise<{ pages: { name: string }[] }> {
-  console.log("getToDo called");
   return callAPI({ endPoint: "/pages" });
 }
 
 export function addPage() {
-  console.log("add page called");
   return callAPI({ endPoint: "/page/new", method: "POST" });
 }
 
@@ -32,6 +32,7 @@ const menuMachine = createMachine(
     context: {
       activePage: null as null | string,
       pages: [] as Page[],
+      queuedTitleUpdateRef: null,
     },
     states: {
       initialRender: {
@@ -73,6 +74,9 @@ const menuMachine = createMachine(
               },
             }),
           },
+          EDIT_NOTE: {
+            target: "editingNote",
+          },
         },
       },
       addingPage: {
@@ -100,7 +104,47 @@ const menuMachine = createMachine(
           },
         },
       },
-      pageAdded: {},
+      editingNote: {
+        on: {
+          UPDATE_TITLE: {
+            actions: [
+              ({ event, context }) => {
+                const { queuedTitleUpdateRef } = context;
+                if (queuedTitleUpdateRef) {
+                  queuedTitleUpdateRef.send({
+                    type: "UPDATE",
+                    title: event.payload.title,
+                  });
+                }
+              },
+              assign({
+                pages: ({ context, event }) => {
+                  const { pages, activePage } = context;
+                  const {
+                    payload: { title },
+                  } = event;
+
+                  const updatedPages = pages.map((page) => {
+                    if (page.id === activePage) {
+                      return { ...page, name: title };
+                    }
+                    return page;
+                  });
+
+                  return updatedPages;
+                },
+                queuedTitleUpdateRef: ({ context, event, spawn }) => {
+                  const { queuedTitleUpdateRef } = context;
+                  return (
+                    queuedTitleUpdateRef ||
+                    spawn(debounceMachine, { input: event.payload })
+                  );
+                },
+              }),
+            ],
+          },
+        },
+      },
     },
   },
   {}

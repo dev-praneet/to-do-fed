@@ -8,7 +8,8 @@ import NotesContainer from "./NotesContainer";
 import style from "./style.module.scss";
 
 function Homepage() {
-  const [state, send] = useMachine(menuMachine);
+  const [state, send, actorRef] = useMachine(menuMachine);
+
   const { context } = state;
   const { activePage, pages } = context;
 
@@ -30,6 +31,21 @@ function Homepage() {
   const pageData = {
     title: pages.find((page) => page.id === activePage)?.name,
   };
+
+  function editNote() {
+    send({ type: "EDIT_NOTE" });
+  }
+
+  function updateTitle(title: string) {
+    send({
+      type: "UPDATE_TITLE",
+      payload: {
+        title,
+      },
+    });
+  }
+
+  const shouldRenderNotesContainer = !!pageData.title;
 
   return (
     <div className={style.mainContainer}>
@@ -61,7 +77,13 @@ function Homepage() {
           </button>
         </div>
         <div className={style.taskContainer}>
-          <NotesContainer pageData={pageData} />
+          {shouldRenderNotesContainer && (
+            <NotesContainer
+              pageData={pageData}
+              editNote={editNote}
+              updateTitle={updateTitle}
+            />
+          )}
         </div>
       </div>
     </div>
