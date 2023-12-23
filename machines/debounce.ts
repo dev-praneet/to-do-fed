@@ -5,12 +5,18 @@ import callAPI from "../utils/callAPI";
 const debounceDuration = 1000;
 
 function delay(time: number) {
-  return new Promise((res, rej) => {
+  return new Promise((res) => {
     setTimeout(res, time);
   });
 }
 
-function updateTitle({ pageId, title }: { pageId: string; title: string }) {
+function updateTitle({
+  pageId,
+  title,
+}: {
+  pageId: string | null;
+  title: string;
+}) {
   return callAPI({
     endPoint: `/page/${pageId}`,
     method: "PATCH",
@@ -20,7 +26,13 @@ function updateTitle({ pageId, title }: { pageId: string; title: string }) {
 
 const debounceMachine = createMachine(
   {
-    initial: "waiting",
+    types: {} as {
+      context: {
+        title: string;
+        activePage: string | null;
+        syncCall: Promise<unknown>;
+      };
+    },
     context: ({
       input,
     }: {
@@ -32,6 +44,7 @@ const debounceMachine = createMachine(
         syncCall: Promise.resolve(),
       };
     },
+    initial: "waiting",
     states: {
       waiting: {
         after: {

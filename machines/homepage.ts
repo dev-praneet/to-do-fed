@@ -1,4 +1,4 @@
-import { assign, createMachine, fromCallback, fromPromise } from "xstate";
+import { ActorRef, Snapshot, assign, createMachine, fromPromise } from "xstate";
 
 import callAPI from "../utils/callAPI";
 import debounceMachine from "./debounce";
@@ -28,12 +28,22 @@ type Page = {
 
 const menuMachine = createMachine(
   {
-    initial: "initialRender",
+    types: {} as {
+      context: {
+        activePage: null | string;
+        pages: Page[];
+        queuedTitleUpdateRef: ActorRef<
+          Snapshot<undefined>,
+          { type: string; title: string; activePage: string | null }
+        > | null;
+      };
+    },
     context: {
       activePage: null as null | string,
       pages: [] as Page[],
       queuedTitleUpdateRef: null,
     },
+    initial: "initialRender",
     states: {
       initialRender: {
         invoke: {

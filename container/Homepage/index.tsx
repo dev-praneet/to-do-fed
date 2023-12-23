@@ -4,6 +4,7 @@ import { useMachine } from "@xstate/react";
 import { plus } from "../../public/svg/images";
 import menuMachine from "../../machines/homepage";
 import NotesContainer from "./NotesContainer";
+import useLog from "../../hooks/useLog";
 
 import style from "./style.module.scss";
 
