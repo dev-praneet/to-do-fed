@@ -28,8 +28,11 @@ function Homepage() {
     send({ type: "CREATE" });
   }
 
+const activePageObj = pages.find((page) => page.id === activePage);
+
   const pageData = {
-    title: pages.find((page) => page.id === activePage)?.name,
+    title: activePageObj?.name,
+    key: activePageObj?.id,
   };
 
   function editNote() {
@@ -79,6 +82,7 @@ function Homepage() {
         <div className={style.taskContainer}>
           {shouldRenderNotesContainer && (
             <NotesContainer
+              key={pageData.key}
               pageData={pageData}
               editNote={editNote}
               updateTitle={updateTitle}

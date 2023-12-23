@@ -65,14 +65,7 @@ const menuMachine = createMachine(
             target: "addingPage",
           },
           SET_ACTIVE_PAGE: {
-            actions: assign({
-              activePage: ({ event }) => {
-                const {
-                  payload: { id },
-                } = event;
-                return id;
-              },
-            }),
+            actions: ["setActivePage"],
           },
           EDIT_NOTE: {
             target: "editingNote",
@@ -146,11 +139,29 @@ const menuMachine = createMachine(
               }),
             ],
           },
+          SET_ACTIVE_PAGE: {
+            actions: ["setActivePage"],
+            target: "idle",
+          },
+          CREATE: {
+            target: "addingPage",
+          },
         },
       },
     },
   },
-  {}
+  {
+    actions: {
+      setActivePage: assign({
+        activePage: ({ event }) => {
+          const {
+            payload: { id },
+          } = event;
+          return id;
+        },
+      }),
+    },
+  }
 );
 
 export default menuMachine;
