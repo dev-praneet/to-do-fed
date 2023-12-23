@@ -68,6 +68,17 @@ export function makeServer({ environment = "test" } = {}) {
         return serializedPageData;
       });
 
+      this.patch("/page/:id", function (schema, req) {
+        const {
+          params: { id },
+          requestBody,
+        } = req;
+        const parsedBody = JSON.parse(requestBody);
+        const page = schema.pages.find(id);
+        const updatedPage = page.update({ name: parsedBody.title });
+        return updatedPage;
+      });
+
       // resets the namespace to the root
       this.namespace = ""; // or this.namespace = "/"
       this.passthrough(); // now this will pass through everything not handled to the current domain (e.g. localhost:3000)

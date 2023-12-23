@@ -109,11 +109,12 @@ const menuMachine = createMachine(
           UPDATE_TITLE: {
             actions: [
               ({ event, context }) => {
-                const { queuedTitleUpdateRef } = context;
+                const { activePage, queuedTitleUpdateRef } = context;
                 if (queuedTitleUpdateRef) {
                   queuedTitleUpdateRef.send({
                     type: "UPDATE",
                     title: event.payload.title,
+                    activePage,
                   });
                 }
               },
@@ -134,10 +135,12 @@ const menuMachine = createMachine(
                   return updatedPages;
                 },
                 queuedTitleUpdateRef: ({ context, event, spawn }) => {
-                  const { queuedTitleUpdateRef } = context;
+                  const { activePage, queuedTitleUpdateRef } = context;
                   return (
                     queuedTitleUpdateRef ||
-                    spawn(debounceMachine, { input: event.payload })
+                    spawn(debounceMachine, {
+                      input: { ...event.payload, activePage },
+                    })
                   );
                 },
               }),
