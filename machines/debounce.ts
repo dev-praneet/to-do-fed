@@ -2,7 +2,7 @@ import { assign, createMachine } from "xstate";
 
 import callAPI from "../utils/callAPI";
 
-const debounceDuration = 1000;
+const debounceDuration = 500;
 
 function delay(time: number) {
   return new Promise((res) => {

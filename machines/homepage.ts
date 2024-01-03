@@ -1,177 +1,218 @@
-import { ActorRef, Snapshot, assign, createMachine, fromPromise } from "xstate";
+import { ActorRef, Snapshot, assign, fromPromise, raise, setup } from "xstate";
 
 import callAPI from "../utils/callAPI";
 import debounceMachine from "./debounce";
+import { NoteStatusTypes } from "../utils/types";
 
-export function getToDo(): Promise<{ pages: { name: string }[] }> {
+function getToDo(): Promise<{ pages: { name: string }[] }> {
   return callAPI({ endPoint: "/pages" });
 }
 
-export function addPage() {
+function addPage() {
   return callAPI({ endPoint: "/page/new", method: "POST" });
 }
 
-// TODO - will be used later
-// function getPageData({
-//   queryKey,
-// }: {
-//   queryKey: [unknown, { activePage: string }];
-// }) {
-//   const [, { activePage }] = queryKey;
-//   return callAPI({ endPoint: `/page/${activePage}` });
-// }
+function getPageData(pageId: string) {
+  return callAPI({ endPoint: `/page/${pageId}` });
+}
 
-type Page = {
+export type Page = {
   id: string;
   name: string;
 };
 
-const menuMachine = createMachine(
-  {
-    types: {} as {
-      context: {
-        activePage: null | string;
-        pages: Page[];
-        queuedTitleUpdateRef: ActorRef<
-          Snapshot<undefined>,
-          { type: string; title: string; activePage: string | null }
-        > | null;
-      };
-    },
+type Note = {
+  id: string;
+  title: string;
+  description: string;
+  status: NoteStatusTypes;
+};
+
+const homepageMachine = setup({
+  types: {} as {
     context: {
-      activePage: null as null | string,
-      pages: [] as Page[],
-      queuedTitleUpdateRef: null,
+      activePage: null | string;
+      pages: Page[];
+      queuedTitleUpdateRef: ActorRef<
+        Snapshot<undefined>,
+        { type: string; title: string; activePage: string | null }
+      > | null;
+      notesByPageId: { [key: string]: Note[] };
+    };
+  },
+  actions: {
+    setActivePage: assign({
+      activePage: ({ event }) => {
+        const {
+          payload: { id },
+        } = event;
+        return id;
+      },
+    }),
+  },
+}).createMachine({
+  context: {
+    activePage: null as null | string,
+    pages: [] as Page[],
+    queuedTitleUpdateRef: null,
+    notesByPageId: {},
+  },
+  type: "parallel",
+  states: {
+    leftSideBar: {
+      initial: "initialRender",
+      states: {
+        initialRender: {
+          invoke: {
+            src: fromPromise(getToDo),
+            onDone: {
+              actions: [
+                assign({
+                  pages: ({ event }) => {
+                    const {
+                      output: { pages },
+                    } = event;
+                    return pages;
+                  },
+                  activePage: ({ event }) => {
+                    const {
+                      output: { pages },
+                    } = event;
+                    return pages.length ? "1" : null;
+                  },
+                }),
+                raise(({ event }) => {
+                  return { type: "FETCH_NOTES", input: event };
+                }),
+              ],
+              target: "idle",
+            },
+          },
+        },
+        idle: {
+          on: {
+            CREATE: {
+              target: "addingPage",
+            },
+            SET_ACTIVE_PAGE: {
+              actions: ["setActivePage"],
+            },
+          },
+        },
+        addingPage: {
+          invoke: {
+            src: fromPromise(addPage),
+            onDone: {
+              actions: [
+                assign({
+                  pages: ({ context, event }) => {
+                    const {
+                      output: { page },
+                    } = event;
+                    const { pages } = context;
+                    return [...pages, page];
+                  },
+                  activePage: ({ event }) => {
+                    const {
+                      output: { page },
+                    } = event;
+                    return page.id;
+                  },
+                }),
+              ],
+              target: "idle",
+            },
+          },
+        },
+      },
     },
-    initial: "initialRender",
-    states: {
-      initialRender: {
-        invoke: {
-          src: fromPromise(getToDo),
-          onDone: {
-            actions: [
-              assign({
-                pages: ({ event }) => {
-                  const {
-                    output: { pages },
-                  } = event;
-                  return pages;
-                },
-                activePage: ({ event }) => {
-                  const {
-                    output: { pages },
-                  } = event;
-                  return pages.length ? "1" : null;
-                },
-              }),
-            ],
-            target: "idle",
+    mainContent: {
+      initial: "unknownActivePage",
+      states: {
+        idle: {
+          on: {
+            EDIT_TITLE: {
+              target: "editingTitle",
+            },
           },
         },
-      },
-      idle: {
-        on: {
-          CREATE: {
-            target: "addingPage",
-          },
-          SET_ACTIVE_PAGE: {
-            actions: ["setActivePage"],
-          },
-          EDIT_NOTE: {
-            target: "editingNote",
+        unknownActivePage: {
+          on: {
+            FETCH_NOTES: {
+              target: "fetchingNotes",
+            },
           },
         },
-      },
-      addingPage: {
-        invoke: {
-          src: fromPromise(addPage),
-          onDone: {
-            actions: [
-              assign({
-                pages: ({ context, event }) => {
-                  const {
-                    output: { page },
-                  } = event;
-                  const { pages } = context;
-                  return [...pages, page];
-                },
-                activePage: ({ event }) => {
-                  const {
-                    output: { page },
-                  } = event;
-                  return page.id;
-                },
-              }),
-            ],
-            target: "idle",
+        fetchingNotes: {
+          invoke: {
+            src: fromPromise(({ input }) => {
+              return getPageData(input.pageId);
+            }),
+            input: ({ context }) => {
+              return { pageId: context.activePage };
+            },
+            onDone: {
+              actions: [
+                assign({
+                  notesByPageId: ({ context, event }) => {
+                    const {
+                      output: { notes, page },
+                    } = event;
+                    return { ...context.notesByPageId, [page.id]: notes };
+                  },
+                }),
+              ],
+              target: "idle",
+            },
           },
         },
-      },
-      editingNote: {
-        on: {
-          UPDATE_TITLE: {
-            actions: [
-              ({ event, context }) => {
-                const { activePage, queuedTitleUpdateRef } = context;
-                if (queuedTitleUpdateRef) {
-                  queuedTitleUpdateRef.send({
-                    type: "UPDATE",
-                    title: event.payload.title,
-                    activePage,
-                  });
-                }
-              },
-              assign({
-                pages: ({ context, event }) => {
-                  const { pages, activePage } = context;
-                  const {
-                    payload: { title },
-                  } = event;
-
-                  const updatedPages = pages.map((page) => {
-                    if (page.id === activePage) {
-                      return { ...page, name: title };
-                    }
-                    return page;
-                  });
-
-                  return updatedPages;
-                },
-                queuedTitleUpdateRef: ({ context, event, spawn }) => {
+        editingTitle: {
+          on: {
+            UPDATE_TITLE: {
+              actions: [
+                ({ event, context }) => {
                   const { activePage, queuedTitleUpdateRef } = context;
-                  return (
-                    queuedTitleUpdateRef ||
-                    spawn(debounceMachine, {
-                      input: { ...event.payload, activePage },
-                    })
-                  );
+                  if (queuedTitleUpdateRef) {
+                    queuedTitleUpdateRef.send({
+                      type: "UPDATE",
+                      title: event.payload.title,
+                      activePage,
+                    });
+                  }
                 },
-              }),
-            ],
-          },
-          SET_ACTIVE_PAGE: {
-            actions: ["setActivePage"],
-            target: "idle",
-          },
-          CREATE: {
-            target: "addingPage",
+                assign({
+                  pages: ({ context, event }) => {
+                    const { pages, activePage } = context;
+                    const {
+                      payload: { title },
+                    } = event;
+
+                    const updatedPages = pages.map((page) => {
+                      if (page.id === activePage) {
+                        return { ...page, name: title };
+                      }
+                      return page;
+                    });
+
+                    return updatedPages;
+                  },
+                  queuedTitleUpdateRef: ({ context, event, spawn }) => {
+                    const { activePage, queuedTitleUpdateRef } = context;
+                    return (
+                      queuedTitleUpdateRef ||
+                      spawn(debounceMachine, {
+                        input: { ...event.payload, activePage },
+                      })
+                    );
+                  },
+                }),
+              ],
+            },
           },
         },
       },
     },
   },
-  {
-    actions: {
-      setActivePage: assign({
-        activePage: ({ event }) => {
-          const {
-            payload: { id },
-          } = event;
-          return id;
-        },
-      }),
-    },
-  }
-);
+});
 
-export default menuMachine;
+export default homepageMachine;

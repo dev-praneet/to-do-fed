@@ -2,12 +2,13 @@ import { useEffect } from "react";
 import { ActorRef, EventObject, Snapshot } from "xstate";
 
 export default function useLog(
-  actorRef: ActorRef<Snapshot<unknown>, EventObject>
+  actorRef: ActorRef<Snapshot<unknown>, EventObject>,
+  logString?: string
 ) {
   useEffect(() => {
-    console.log("useEffect ran");
     const subscription = actorRef.subscribe({
       next(snapshot) {
+        logString && console.log(logString);
         console.log("snapshot is: ", snapshot);
       },
       error(err) {
@@ -19,5 +20,5 @@ export default function useLog(
     });
 
     return subscription.unsubscribe;
-  }, [actorRef]);
+  }, [actorRef, logString]);
 }

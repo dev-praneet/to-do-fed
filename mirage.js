@@ -6,6 +6,7 @@ import {
   JSONAPISerializer,
   RestSerializer,
 } from "miragejs";
+import { NOTE_STATUS } from "./constant/constant";
 
 const ApplicationSerializer = RestSerializer.extend({});
 
@@ -38,10 +39,15 @@ export function makeServer({ environment = "test" } = {}) {
       ];
       pages.forEach((page) => {
         const createdPage = server.create("page", { name: page });
-        Array.from({ length: 5 }).forEach((_, index) => {
+        Array.from({ length: 8 }).forEach((_, index) => {
           server.create("note", {
-            title: `${page} note ${index}`,
+            title: `${page} note ${index + 1}`,
+            desciption: `description - ${index + 1}`,
             page: createdPage,
+            status:
+              Object.values(NOTE_STATUS)[
+                index % Object.values(NOTE_STATUS).length
+              ],
           });
         });
       });

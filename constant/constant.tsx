@@ -1,1 +1,11 @@
-export {};
+export const ACTOR_ID = {
+  LEFT_SIDEBAR: "LEFT_SIDEBAR",
+  MAIN_CONTENT_MACHINE: "MAIN_CONTENT_MACHINE",
+};
+
+export const NOTE_STATUS = {
+  TO_DO: "TO_DO",
+  IN_PROGRESS: "IN_PROGRESS",
+  ON_HOLD: "ON_HOLD",
+  DONE: "DONE",
+} as const;
