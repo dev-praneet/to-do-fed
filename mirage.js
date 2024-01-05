@@ -42,7 +42,7 @@ export function makeServer({ environment = "test" } = {}) {
         Array.from({ length: 8 }).forEach((_, index) => {
           server.create("note", {
             title: `${page} note ${index + 1}`,
-            desciption: `description - ${index + 1}`,
+            description: `description - ${index + 1}`,
             page: createdPage,
             status:
               Object.values(NOTE_STATUS)[

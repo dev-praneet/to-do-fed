@@ -1,9 +1,59 @@
 @use "styles/theme" as *;
 
 .container {
-    padding-block: 30px;
+  padding-block: 30px;
 }
 
 .title {
-    text-align: center;
+  text-align: center;
+}
+
+.noteColumnWrapper {
+  display: flex;
+  column-gap: 20px;
+
+  margin-top: 30px;
+  padding-inline: 20px;
+}
+
+.noteColumn {
+  flex-basis: 100%;
+
+  padding: 10px;
+
+  background-color: #1d1d1c;
+  color: #ccb8b6;
+}
+
+.noteWrapper {
+  margin-top: 30px;
+}
+
+.note {
+  padding: 5px;
+
+  background-color: #2e2f2e;
+
+  & + & {
+    margin-top: 20px;
+  }
+}
+
+.noteDescription {
+  margin-top: 5px;
+}
+
+.createNew {
+    display: block;
+    margin-top: 20px;
+    margin-inline: auto;
+    padding: 5px 15px;
+
+    color: white;
+    background-color: transparent;
+
+    &:hover {
+        cursor: pointer;
+        background-color: #2e2f2e;
+    }
 }

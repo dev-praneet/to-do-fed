@@ -4,8 +4,8 @@ export const ACTOR_ID = {
 };
 
 export const NOTE_STATUS = {
-  TO_DO: "TO_DO",
-  IN_PROGRESS: "IN_PROGRESS",
-  ON_HOLD: "ON_HOLD",
-  DONE: "DONE",
+  TO_DO: { key: "TO_DO", label: "To Do" },
+  IN_PROGRESS: { key: "IN_PROGRESS", label: "Doing" },
+  ON_HOLD: { key: "ON_HOLD", label: "On Hold" },
+  DONE: { key: "DONE", label: "Done" },
 } as const;

@@ -1,3 +1,4 @@
+import { createContext } from "react";
 import { useMachine } from "@xstate/react";
 
 import MainContent from "./MainContent";
@@ -6,6 +7,11 @@ import LeftSideBar from "../../components/LeftSideBar";
 import homepageMachine from "../../machines/homepage";
 
 import style from "./style.module.scss";
+import { AnyEventObject } from "xstate";
+
+export const HomepageMachineContext = createContext(
+  {} as { context: unknown; send: (event: AnyEventObject) => void }
+);
 
 function Homepage() {
   const [{ context }, send, actorRef] = useMachine(homepageMachine, {
@@ -24,10 +30,12 @@ function Homepage() {
   return (
     <div className={style.mainContainer}>
       <div className={style.container}>
-        <LeftSideBar pages={pages} activePage={activePage} send={send} />
-        <div className={style.taskContainer}>
-          <MainContent {...pageData} send={send} />
-        </div>
+        <HomepageMachineContext.Provider value={{ context, send }}>
+          <LeftSideBar pages={pages} activePage={activePage} send={send} />
+          <div className={style.taskContainer}>
+            <MainContent {...pageData} />
+          </div>
+        </HomepageMachineContext.Provider>
       </div>
     </div>
   );

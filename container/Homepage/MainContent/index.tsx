@@ -2,17 +2,29 @@ import { useEffect, useRef } from "react";
 import { AnyEventObject } from "xstate";
 
 import useLog from "../../../hooks/useLog";
-import { ACTOR_ID } from "../../../constant/constant";
+import { ACTOR_ID, NOTE_STATUS } from "../../../constant/constant";
+import useHMContext from "../../../hooks/useHMContext";
 
-import styles from "./style.module.scss";
+import style from "./style.module.scss";
 
 type NotesContainerProps = {
-  send: (event: AnyEventObject) => void;
   title?: string;
 };
 
 function MainContent(props: NotesContainerProps) {
-  const { send, title } = props;
+  const { title } = props;
+
+  const { send, context } = useHMContext();
+  const { activePage, notesByPageId } = context;
+  const notes = notesByPageId[activePage];
+  const notesByStatus = notes?.reduce(
+    (acc, note) => {
+      return { ...acc, [note.status.key]: [...acc[note.status.key], note] };
+    },
+    Object.keys(NOTE_STATUS).reduce((acc, status) => {
+      return { ...acc, [status]: [] };
+    }, {})
+  );
 
   const incomingTitle = useRef(title);
 
@@ -34,16 +46,39 @@ function MainContent(props: NotesContainerProps) {
   }
 
   return (
-    <div className={styles.container}>
+    <div className={style.container}>
       <h1
-        className={styles.title}
+        className={style.title}
         contentEditable={true}
         onClick={editNote}
         onInput={onInput}
       >
         {incomingTitle.current}
       </h1>
-      <p>This is the main component</p>
+      <div className={style.noteColumnWrapper}>
+        {Object.values(NOTE_STATUS).map((noteStatus) => {
+          return (
+            <div key={noteStatus.key} className={style.noteColumn}>
+              <p>{noteStatus.label}</p>
+
+              <div className={style.noteWrapper}>
+                {notesByStatus &&
+                  notesByStatus[noteStatus.key].map((note) => {
+                    return (
+                      <div key={note.id} className={style.note}>
+                        <h3>{note.title}</h3>
+                        <p className={style.noteDescription}>
+                          {note.description}
+                        </p>
+                      </div>
+                    );
+                  })}
+                <button className={style.createNew}>+ New</button>
+              </div>
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }
