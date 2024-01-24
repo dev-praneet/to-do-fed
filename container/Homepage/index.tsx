@@ -1,5 +1,6 @@
 import { createContext } from "react";
 import { useMachine } from "@xstate/react";
+import { AnyEventObject } from "xstate";
 
 import MainContent from "./MainContent";
 import useLog from "../../hooks/useLog";
@@ -7,7 +8,6 @@ import LeftSideBar from "../../components/LeftSideBar";
 import homepageMachine from "../../machines/homepage";
 
 import style from "./style.module.scss";
-import { AnyEventObject } from "xstate";
 
 export const HomepageMachineContext = createContext(
   {} as { context: unknown; send: (event: AnyEventObject) => void }

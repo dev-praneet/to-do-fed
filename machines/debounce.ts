@@ -24,14 +24,24 @@ function updateTitle({
   });
 }
 
+export type DebounceMachineContext = {
+  title: string;
+  activePage: string | null;
+  syncCall: Promise<unknown>;
+};
+
+export type DebounceEvent = {
+  type: "UPDATE";
+  title: string;
+  activePage: string | null;
+};
+
 const debounceMachine = createMachine(
   {
     types: {} as {
-      context: {
-        title: string;
-        activePage: string | null;
-        syncCall: Promise<unknown>;
-      };
+      context: DebounceMachineContext;
+      events: DebounceEvent;
+      output: undefined;
     },
     context: ({
       input,
@@ -69,7 +79,7 @@ const debounceMachine = createMachine(
         },
         entry: [
           assign({
-            syncCall: ({ context, event }) => {
+            syncCall: ({ context }) => {
               const { syncCall, activePage } = context;
               return syncCall.then(() =>
                 updateTitle({ pageId: activePage, title: context.title })

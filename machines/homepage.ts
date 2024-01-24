@@ -1,7 +1,20 @@
-import { ActorRef, Snapshot, assign, fromPromise, raise, setup } from "xstate";
+import {
+  ActorRef,
+  EventObject,
+  MachineSnapshot,
+  PromiseSnapshot,
+  StateValue,
+  assign,
+  fromPromise,
+  raise,
+  setup,
+} from "xstate";
 
 import callAPI from "../utils/callAPI";
-import debounceMachine from "./debounce";
+import debounceMachine, {
+  DebounceEvent,
+  DebounceMachineContext,
+} from "./debounce";
 import { NoteStatusTypes } from "../utils/types";
 
 function getToDo(): Promise<{ pages: { name: string }[] }> {
@@ -33,11 +46,28 @@ const homepageMachine = setup({
     context: {
       activePage: null | string;
       pages: Page[];
-      queuedTitleUpdateRef: ActorRef<
-        Snapshot<undefined>,
-        { type: string; title: string; activePage: string | null }
-      > | null;
       notesByPageId: { [key: string]: Note[] };
+      //   TODO -> move it within spawnedActors
+      queuedTitleUpdateRef: ActorRef<
+        MachineSnapshot<
+          DebounceMachineContext,
+          DebounceEvent,
+          {},
+          StateValue,
+          string,
+          undefined,
+          any
+        >,
+        DebounceEvent
+      > | null;
+      spawnedActors: {
+        notesByPages: {
+          [key: string]: ActorRef<
+            PromiseSnapshot<unknown, unknown>,
+            EventObject
+          >;
+        };
+      };
     };
   },
   actions: {
@@ -49,15 +79,32 @@ const homepageMachine = setup({
         return id;
       },
     }),
+    setNotesByPageId: assign({
+      notesByPageId: ({ context, event }) => {
+        const {
+          output: { notes, page },
+        } = event;
+        return { ...context.notesByPageId, [page.id]: notes };
+      },
+    }),
   },
 }).createMachine({
   context: {
     activePage: null as null | string,
     pages: [] as Page[],
-    queuedTitleUpdateRef: null,
     notesByPageId: {},
+    spawnedActors: {
+      notesByPages: {},
+    },
+    queuedTitleUpdateRef: null,
   },
   type: "parallel",
+  id: "homepage",
+  on: {
+    SET_NOTES_BY_PAGE_ID: {
+      actions: ["setNotesByPageId"],
+    },
+  },
   states: {
     leftSideBar: {
       initial: "initialRender",
@@ -95,7 +142,12 @@ const homepageMachine = setup({
               target: "addingPage",
             },
             SET_ACTIVE_PAGE: {
-              actions: ["setActivePage"],
+              actions: [
+                "setActivePage",
+                raise(() => {
+                  return { type: "FETCH_NOTES" };
+                }),
+              ],
             },
           },
         },
@@ -127,42 +179,50 @@ const homepageMachine = setup({
       },
     },
     mainContent: {
-      initial: "unknownActivePage",
+      initial: "idle",
+      on: {
+        FETCH_NOTES: {
+          actions: [
+            assign({
+              spawnedActors: ({ context, spawn, self }) => {
+                const { activePage, spawnedActors } = context;
+                const { notesByPages } = spawnedActors;
+
+                return activePage
+                  ? {
+                      ...spawnedActors,
+                      notesByPages: {
+                        ...notesByPages,
+                        [activePage]: spawn(
+                          fromPromise(
+                            async ({
+                              input,
+                            }: {
+                              input: { parent: typeof self };
+                            }) => {
+                              const { parent } = input;
+                              const pageData = await getPageData(activePage);
+                              parent.send({
+                                type: "SET_NOTES_BY_PAGE_ID",
+                                output: pageData,
+                              });
+                            }
+                          ),
+                          { input: { parent: self } }
+                        ),
+                      },
+                    }
+                  : spawnedActors;
+              },
+            }),
+          ],
+        },
+      },
       states: {
         idle: {
           on: {
             EDIT_TITLE: {
               target: "editingTitle",
-            },
-          },
-        },
-        unknownActivePage: {
-          on: {
-            FETCH_NOTES: {
-              target: "fetchingNotes",
-            },
-          },
-        },
-        fetchingNotes: {
-          invoke: {
-            src: fromPromise(({ input }) => {
-              return getPageData(input.pageId);
-            }),
-            input: ({ context }) => {
-              return { pageId: context.activePage };
-            },
-            onDone: {
-              actions: [
-                assign({
-                  notesByPageId: ({ context, event }) => {
-                    const {
-                      output: { notes, page },
-                    } = event;
-                    return { ...context.notesByPageId, [page.id]: notes };
-                  },
-                }),
-              ],
-              target: "idle",
             },
           },
         },
