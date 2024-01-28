@@ -55,7 +55,7 @@ export function makeServer({ environment = "test" } = {}) {
 
     routes() {
       this.namespace = "/api";
-      this.timing = 2000;
+      this.timing = 500;
 
       this.get("/pages", (schema) => {
         return schema.pages.all();
@@ -83,6 +83,19 @@ export function makeServer({ environment = "test" } = {}) {
         const page = schema.pages.find(id);
         const updatedPage = page.update({ name: parsedBody.title });
         return updatedPage;
+      });
+
+      this.post("note/new", (schema, req) => {
+        const { requestBody } = req;
+        const parsedBody = JSON.parse(requestBody);
+        const { pageId, noteStatusKey } = parsedBody;
+        const page = schema.pages.find(pageId);
+        return schema.notes.create({
+          title: "",
+          description: "",
+          page,
+          status: NOTE_STATUS[noteStatusKey],
+        });
       });
 
       // resets the namespace to the root

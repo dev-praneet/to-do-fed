@@ -10,12 +10,12 @@ import {
   setup,
 } from "xstate";
 
-import callAPI from "../utils/callAPI";
 import debounceMachine, {
   DebounceEvent,
   DebounceMachineContext,
 } from "./debounce";
-import { NoteStatusTypes } from "../utils/types";
+import callAPI from "../utils/callAPI";
+import { NoteStatusKeyTypes, NoteStatusObjectTypes } from "../utils/types";
 
 function getToDo(): Promise<{ pages: { name: string }[] }> {
   return callAPI({ endPoint: "/pages" });
@@ -29,46 +29,65 @@ function getPageData(pageId: string) {
   return callAPI({ endPoint: `/page/${pageId}` });
 }
 
+function createNote({
+  noteStatusKey,
+  pageId,
+}: {
+  noteStatusKey: NoteStatusKeyTypes;
+  pageId: string;
+}) {
+  return callAPI({
+    endPoint: "/note/new",
+    method: "POST",
+    body: { noteStatusKey, pageId },
+  });
+}
+
 export type Page = {
   id: string;
   name: string;
 };
 
-type Note = {
+export type Note = {
   id: string;
   title: string;
   description: string;
-  status: NoteStatusTypes;
+  status: NoteStatusObjectTypes;
+};
+
+export type HomepageMachineContext = {
+  activePage: null | string;
+  pages: Page[];
+  notesByPageId: { [key: string]: Note[] };
+  //   TODO -> move it within spawnedActors
+  queuedTitleUpdateRef: ActorRef<
+    MachineSnapshot<
+      DebounceMachineContext,
+      DebounceEvent,
+      {},
+      StateValue,
+      string,
+      undefined,
+      any
+    >,
+    DebounceEvent
+  > | null;
+  spawnedActors: {
+    notesByPages: {
+      [key: string]: ActorRef<PromiseSnapshot<unknown, unknown>, EventObject>;
+    };
+    newNoteByStatusKey: {
+      [key in NoteStatusKeyTypes]?: ActorRef<
+        PromiseSnapshot<undefined, unknown>,
+        never
+      >;
+    };
+  };
 };
 
 const homepageMachine = setup({
   types: {} as {
-    context: {
-      activePage: null | string;
-      pages: Page[];
-      notesByPageId: { [key: string]: Note[] };
-      //   TODO -> move it within spawnedActors
-      queuedTitleUpdateRef: ActorRef<
-        MachineSnapshot<
-          DebounceMachineContext,
-          DebounceEvent,
-          {},
-          StateValue,
-          string,
-          undefined,
-          any
-        >,
-        DebounceEvent
-      > | null;
-      spawnedActors: {
-        notesByPages: {
-          [key: string]: ActorRef<
-            PromiseSnapshot<unknown, unknown>,
-            EventObject
-          >;
-        };
-      };
-    };
+    context: HomepageMachineContext;
   },
   actions: {
     setActivePage: assign({
@@ -95,6 +114,7 @@ const homepageMachine = setup({
     notesByPageId: {},
     spawnedActors: {
       notesByPages: {},
+      newNoteByStatusKey: {},
     },
     queuedTitleUpdateRef: null,
   },
@@ -103,6 +123,38 @@ const homepageMachine = setup({
   on: {
     SET_NOTES_BY_PAGE_ID: {
       actions: ["setNotesByPageId"],
+    },
+    REMOVE_ACTOR_REF: {
+      actions: [
+        assign({
+          spawnedActors: ({ context, event }) => {
+            // TODO -> provide proper type for path
+            // it is too constrained as of now
+            const {
+              payload: { path },
+            } = event as EventObject & {
+              payload: {
+                path: [
+                  keyof HomepageMachineContext["spawnedActors"],
+                  NoteStatusKeyTypes
+                ];
+              };
+            };
+            const { spawnedActors } = context;
+
+            switch (path.length) {
+              case 2: {
+                const oldObject = spawnedActors[path[0]];
+                const { [path[1]]: notNeeded, ...newObject } = oldObject;
+                return { ...spawnedActors, [path[0]]: newObject };
+              }
+              default: {
+                return spawnedActors;
+              }
+            }
+          },
+        }),
+      ],
     },
   },
   states: {
@@ -213,6 +265,80 @@ const homepageMachine = setup({
                       },
                     }
                   : spawnedActors;
+              },
+            }),
+          ],
+        },
+        ADD_NOTE: {
+          actions: [
+            assign({
+              spawnedActors: ({ context, event, self, spawn }) => {
+                const { spawnedActors, activePage } = context;
+                const { newNoteByStatusKey } = spawnedActors;
+                const {
+                  payload: { noteStatusKey },
+                } = event;
+
+                if (noteStatusKey in newNoteByStatusKey || !activePage) {
+                  return spawnedActors;
+                }
+
+                const spawnedActor = spawn(
+                  fromPromise(
+                    async ({ input }: { input: { parent: typeof self } }) => {
+                      const response = await createNote({
+                        noteStatusKey,
+                        pageId: activePage,
+                      });
+                      const { parent } = input;
+                      parent.send({
+                        type: "NEW_NOTE_CREATED",
+                        output: response,
+                      });
+                    }
+                  ),
+                  {
+                    input: {
+                      parent: self,
+                    },
+                  }
+                );
+
+                spawnedActor.subscribe({
+                  complete() {
+                    self.send({
+                      type: "REMOVE_ACTOR_REF",
+                      payload: {
+                        path: ["newNoteByStatusKey", noteStatusKey],
+                      },
+                    });
+                  },
+                });
+
+                return {
+                  ...spawnedActors,
+                  newNoteByStatusKey: {
+                    ...spawnedActors.newNoteByStatusKey,
+                    [noteStatusKey]: spawnedActor,
+                  },
+                };
+              },
+            }),
+          ],
+        },
+        NEW_NOTE_CREATED: {
+          actions: [
+            assign({
+              notesByPageId: ({ context, event }) => {
+                const { notesByPageId } = context;
+                const {
+                  output: { note },
+                } = event;
+
+                return {
+                  ...notesByPageId,
+                  [note.page]: [...notesByPageId[note.page], note],
+                };
               },
             }),
           ],

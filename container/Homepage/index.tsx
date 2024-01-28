@@ -5,12 +5,17 @@ import { AnyEventObject } from "xstate";
 import MainContent from "./MainContent";
 import useLog from "../../hooks/useLog";
 import LeftSideBar from "../../components/LeftSideBar";
-import homepageMachine from "../../machines/homepage";
+import homepageMachine, {
+  HomepageMachineContext as THomepageMachineContext,
+} from "../../machines/homepage";
 
 import style from "./style.module.scss";
 
 export const HomepageMachineContext = createContext(
-  {} as { context: unknown; send: (event: AnyEventObject) => void }
+  {} as {
+    context: THomepageMachineContext;
+    send: (event: AnyEventObject) => void;
+  }
 );
 
 function Homepage() {

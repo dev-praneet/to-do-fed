@@ -1,9 +1,10 @@
-import { useEffect, useRef } from "react";
-import { AnyEventObject } from "xstate";
+import { useRef } from "react";
 
 import useLog from "../../../hooks/useLog";
-import { ACTOR_ID, NOTE_STATUS } from "../../../constant/constant";
+import { NOTE_STATUS } from "../../../constant/constant";
 import useHMContext from "../../../hooks/useHMContext";
+import { NoteStatusKeyTypes } from "../../../utils/types";
+import { Note } from "../../../machines/homepage";
 
 import style from "./style.module.scss";
 
@@ -16,14 +17,14 @@ function MainContent(props: NotesContainerProps) {
 
   const { send, context } = useHMContext();
   const { activePage, notesByPageId } = context;
-  const notes = notesByPageId[activePage];
+  const notes = notesByPageId[activePage!];
   const notesByStatus = notes?.reduce(
     (acc, note) => {
       return { ...acc, [note.status.key]: [...acc[note.status.key], note] };
     },
     Object.keys(NOTE_STATUS).reduce((acc, status) => {
       return { ...acc, [status]: [] };
-    }, {})
+    }, {} as { [key in NoteStatusKeyTypes]: Note[] })
   );
 
   const incomingTitle = useRef(title);
@@ -43,6 +44,13 @@ function MainContent(props: NotesContainerProps) {
 
   function onInput(event: { target: unknown }) {
     updateTitle((event.target as { innerText: string }).innerText);
+  }
+
+  function addNote(noteStatusKey: NoteStatusKeyTypes) {
+    send({
+      type: "ADD_NOTE",
+      payload: { noteStatusKey },
+    });
   }
 
   return (
@@ -73,7 +81,12 @@ function MainContent(props: NotesContainerProps) {
                       </div>
                     );
                   })}
-                <button className={style.createNew}>+ New</button>
+                <button
+                  className={style.createNew}
+                  onClick={addNote.bind(null, noteStatus.key)}
+                >
+                  + New
+                </button>
               </div>
             </div>
           );
