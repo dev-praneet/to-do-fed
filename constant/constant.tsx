@@ -9,3 +9,8 @@ export const NOTE_STATUS = {
   ON_HOLD: { key: "ON_HOLD", label: "On Hold" },
   DONE: { key: "DONE", label: "Done" },
 } as const;
+
+/**
+ * it is time in miliseconds
+ */
+export const transitionDuration = 500;

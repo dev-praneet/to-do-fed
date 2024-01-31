@@ -61,7 +61,7 @@ export function makeServer({ environment = "test" } = {}) {
         return schema.pages.all();
       });
 
-      this.post("/page/new", (schema, req) => {
+      this.post("/page/new", (schema) => {
         return schema.pages.create({ name: "" });
       });
 

@@ -6,9 +6,9 @@ import { HomepageMachineContext } from "../container/Homepage";
  * HM stands for Homepage Machine
  */
 const useHMContext = () => {
-  const { context, send } = useContext(HomepageMachineContext);
+  const { context, send, actorRef } = useContext(HomepageMachineContext);
 
-  return { context, send };
+  return { context, send, actorRef };
 };
 
 export default useHMContext;

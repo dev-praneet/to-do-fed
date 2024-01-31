@@ -1,0 +1,51 @@
+@use "styles/theme" as *;
+
+.container {
+  border: 2px solid red;
+
+  position: fixed;
+  top: 0px;
+  right: -50%;
+  bottom: 0px;
+  left: 100%;
+
+  background-color: rgba(29, 29, 28, 0.9);
+  
+  z-index: 50;
+}
+
+.slideIn {
+    @keyframes slide-in-from-right {
+      from {
+        transform: translateX(0%);
+      }
+    
+      to {
+        transform: translateX(-100%);
+      }
+    }
+
+    animation: slide-in-from-right var(--transition-duration) ease-in-out 0ms 1 normal forwards;
+}
+
+.slideOut {
+    @keyframes slide-out-to-right {
+      from {
+        transform: translateX(-100%);
+      }
+    
+      to {
+        transform: translateX(0%);
+      }
+    }
+
+    animation: slide-out-to-right var(--transition-duration) ease-in-out 0ms 1 normal forwards;
+}
+
+.topBar {
+  padding: 5px 10px;
+
+  svg:hover {
+    cursor: pointer;
+  }
+}

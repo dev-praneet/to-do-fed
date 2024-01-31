@@ -5,6 +5,8 @@ import { NOTE_STATUS } from "../../../constant/constant";
 import useHMContext from "../../../hooks/useHMContext";
 import { NoteStatusKeyTypes } from "../../../utils/types";
 import { Note } from "../../../machines/homepage";
+import { edit, ellipsis } from "../../../public/svg/images";
+import { useDAContext } from "../../../components/Drawers";
 
 import style from "./style.module.scss";
 
@@ -15,7 +17,7 @@ type NotesContainerProps = {
 function MainContent(props: NotesContainerProps) {
   const { title } = props;
 
-  const { send, context } = useHMContext();
+  const { send, context, actorRef } = useHMContext();
   const { activePage, notesByPageId } = context;
   const notes = notesByPageId[activePage!];
   const notesByStatus = notes?.reduce(
@@ -53,6 +55,17 @@ function MainContent(props: NotesContainerProps) {
     });
   }
 
+  const { send: sendToDAMachine } = useDAContext();
+
+  function openDrawer() {
+    sendToDAMachine({
+      type: "OPEN_DRAWER",
+      payload: {
+        actorRef,
+      },
+    });
+  }
+
   return (
     <div className={style.container}>
       <h1
@@ -78,6 +91,11 @@ function MainContent(props: NotesContainerProps) {
                         <p className={style.noteDescription}>
                           {note.description}
                         </p>
+
+                        <div className={style.noteOptions}>
+                          <button onClick={openDrawer}>{edit}</button>
+                          <div>{ellipsis}</div>
+                        </div>
                       </div>
                     );
                   })}

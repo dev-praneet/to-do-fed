@@ -4,14 +4,14 @@ import cx from "classnames";
 import { plus } from "../../public/svg/images";
 import { ACTOR_ID } from "../../constant/constant";
 import useLog from "../../hooks/useLog";
-import { Page } from "../../machines/homepage";
+import { HomepageMachineEvents, Page } from "../../machines/homepage";
 
 import style from "./style.module.scss";
 
 type LeftSideBarProps = {
   pages: Page[];
   activePage: null | string;
-  send: (event: AnyEventObject) => void;
+  send: (event: HomepageMachineEvents) => void;
 };
 
 const LeftSideBar = (props: LeftSideBarProps) => {

@@ -1,6 +1,6 @@
 import type { AppProps } from "next/app";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
+import Drawers from "../components/Drawers";
 import { makeServer } from "../mirage";
 
 import "../styles/index.scss";
@@ -9,13 +9,11 @@ if (process.env.NODE_ENV === "development") {
   makeServer({ environment: "development" });
 }
 
-const queryClient = new QueryClient();
-
 function MyApp({ Component, pageProps }: AppProps) {
   return (
-    <QueryClientProvider client={queryClient}>
+    <Drawers>
       <Component {...pageProps} />
-    </QueryClientProvider>
+    </Drawers>
   );
 }
 

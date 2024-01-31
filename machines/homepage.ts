@@ -53,6 +53,7 @@ export type Note = {
   title: string;
   description: string;
   status: NoteStatusObjectTypes;
+  page: string;
 };
 
 export type HomepageMachineContext = {
@@ -85,16 +86,46 @@ export type HomepageMachineContext = {
   };
 };
 
+type TSET_NOTES_BY_PAGE_ID = {
+  type: "SET_NOTES_BY_PAGE_ID";
+  output: {
+    notes: Note[];
+    page: { id: string; name: string; notes: string[] };
+  };
+};
+
+type TSET_ACTIVE_PAGE = { type: "SET_ACTIVE_PAGE"; payload: { id: string } };
+
+export type HomepageMachineEvents =
+  | TSET_NOTES_BY_PAGE_ID
+  | { type: "CREATE" }
+  | TSET_ACTIVE_PAGE
+  | { type: "FETCH_NOTES" }
+  | { type: "ADD_NOTE"; payload: { noteStatusKey: NoteStatusKeyTypes } }
+  | { type: "EDIT_TITLE" }
+  | { type: "UPDATE_TITLE"; payload: { title: string } }
+  | {
+      type: "NEW_NOTE_CREATED";
+      output: { note: Note };
+    }
+  | {
+      type: "REMOVE_ACTOR_REF";
+      payload: {
+        path: string[];
+      };
+    };
+
 const homepageMachine = setup({
   types: {} as {
     context: HomepageMachineContext;
+    events: HomepageMachineEvents;
   },
   actions: {
     setActivePage: assign({
       activePage: ({ event }) => {
         const {
           payload: { id },
-        } = event;
+        } = event as TSET_ACTIVE_PAGE;
         return id;
       },
     }),
@@ -102,7 +133,7 @@ const homepageMachine = setup({
       notesByPageId: ({ context, event }) => {
         const {
           output: { notes, page },
-        } = event;
+        } = event as TSET_NOTES_BY_PAGE_ID;
         return { ...context.notesByPageId, [page.id]: notes };
       },
     }),
@@ -222,6 +253,13 @@ const homepageMachine = setup({
                     } = event;
                     return page.id;
                   },
+                  notesByPageId: ({ context, event }) => {
+                    const { notesByPageId } = context;
+                    const {
+                      output: { page },
+                    } = event;
+                    return { ...notesByPageId, [page.id]: page.notes };
+                  },
                 }),
               ],
               target: "idle",
@@ -334,7 +372,6 @@ const homepageMachine = setup({
                 const {
                   output: { note },
                 } = event;
-
                 return {
                   ...notesByPageId,
                   [note.page]: [...notesByPageId[note.page], note],
