@@ -6,7 +6,7 @@ export type DrawerMachineContext = {
 };
 
 export type DrawerEvents =
-  | { type: "OPEN_DRAWER"; payload: { actorRef: AnyActorRef } }
+  | { type: "OPEN_DRAWER"; payload: { actorRef: AnyActorRef; data: unknown } }
   | { type: "CLOSE_DRAWER" };
 
 const drawerMachine = setup({
@@ -40,6 +40,12 @@ const drawerMachine = setup({
                   payload: { actorRef },
                 } = event;
                 return actorRef;
+              },
+              data: ({ event }) => {
+                const {
+                  payload: { data },
+                } = event;
+                return data;
               },
             }),
           ],

@@ -4,6 +4,7 @@ import {
   MachineSnapshot,
   PromiseSnapshot,
   StateValue,
+  assertEvent,
   assign,
   fromPromise,
   raise,
@@ -123,17 +124,21 @@ const homepageMachine = setup({
   actions: {
     setActivePage: assign({
       activePage: ({ event }) => {
+        assertEvent(event, 'SET_ACTIVE_PAGE')
         const {
           payload: { id },
-        } = event as TSET_ACTIVE_PAGE;
+        } = event;
         return id;
       },
     }),
     setNotesByPageId: assign({
-      notesByPageId: ({ context, event }) => {
-        const {
-          output: { notes, page },
-        } = event as TSET_NOTES_BY_PAGE_ID;
+      notesByPageId: ({ context }, {notes, page}: TSET_NOTES_BY_PAGE_ID['output']) => {
+      // notesByPageId: ({ context, event }, {notes, page}) => {
+        // assertEvent(event, 'SET_NOTES_BY_PAGE_ID')
+        // const {
+        //   output: { notes, page },
+        // } = event ;
+        // } = event as TSET_NOTES_BY_PAGE_ID;
         return { ...context.notesByPageId, [page.id]: notes };
       },
     }),
@@ -153,7 +158,10 @@ const homepageMachine = setup({
   id: "homepage",
   on: {
     SET_NOTES_BY_PAGE_ID: {
-      actions: ["setNotesByPageId"],
+      // actions: ["setNotesByPageId"],
+      actions: [{type: "setNotesByPageId", params: ({event}) => {
+return event.output;
+      }}],
     },
     REMOVE_ACTOR_REF: {
       actions: [

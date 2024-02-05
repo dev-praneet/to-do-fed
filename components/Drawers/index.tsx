@@ -62,6 +62,8 @@ const Drawers = (props: { children: ReactNode }) => {
     });
   }
 
+  console.log("context data in drawer is: ", state.context);
+
   return (
     <DrawerActorContext.Provider value={{ state, send, actorRef }}>
       {showDrawer && (
@@ -77,7 +79,9 @@ const Drawers = (props: { children: ReactNode }) => {
           }
         >
           <div className={style.topBar}>
-            <button onClick={closeDrawer}>{doubleChevronRight}</button>
+            <button className={style.closeButton} onClick={closeDrawer}>
+              {doubleChevronRight}
+            </button>
           </div>
         </div>
       )}

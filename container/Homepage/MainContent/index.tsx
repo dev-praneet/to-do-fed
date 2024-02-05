@@ -3,7 +3,10 @@ import { useRef } from "react";
 import useLog from "../../../hooks/useLog";
 import { NOTE_STATUS } from "../../../constant/constant";
 import useHMContext from "../../../hooks/useHMContext";
-import { NoteStatusKeyTypes } from "../../../utils/types";
+import {
+  NoteStatusKeyTypes,
+  NoteStatusObjectTypes,
+} from "../../../utils/types";
 import { Note } from "../../../machines/homepage";
 import { edit, ellipsis } from "../../../public/svg/images";
 import { useDAContext } from "../../../components/Drawers";
@@ -57,11 +60,18 @@ function MainContent(props: NotesContainerProps) {
 
   const { send: sendToDAMachine } = useDAContext();
 
-  function openDrawer() {
+  function openDrawer({
+    noteStatus,
+    noteId,
+  }: {
+    noteStatus: NoteStatusObjectTypes;
+    noteId: string;
+  }) {
     sendToDAMachine({
       type: "OPEN_DRAWER",
       payload: {
         actorRef,
+        data: { noteStatus, noteId },
       },
     });
   }
@@ -93,7 +103,14 @@ function MainContent(props: NotesContainerProps) {
                         </p>
 
                         <div className={style.noteOptions}>
-                          <button onClick={openDrawer}>{edit}</button>
+                          <button
+                            onClick={openDrawer.bind(null, {
+                              noteStatus,
+                              noteId: note.id,
+                            })}
+                          >
+                            {edit}
+                          </button>
                           <div>{ellipsis}</div>
                         </div>
                       </div>
