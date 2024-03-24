@@ -41,6 +41,12 @@
 
     .noteOptions {
       display: flex;
+
+      &:hover {
+        button {
+            cursor: pointer;
+        }
+      }
     }
   }
 

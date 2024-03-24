@@ -14,3 +14,5 @@ export const NOTE_STATUS = {
  * it is time in miliseconds
  */
 export const transitionDuration = 500;
+
+export const defaultDebounceDuration = 300;

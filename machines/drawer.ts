@@ -1,12 +1,23 @@
 import { ActorRef, AnyActorRef, Snapshot, assign, setup } from "xstate";
 
+export const DRAWER_TYPE = {
+  EDIT_NOTE: "EDIT_NOTE",
+} as const;
+
+type DrawerType = keyof typeof DRAWER_TYPE;
+
 export type DrawerMachineContext = {
   transitionDuration: number;
-  controllingActorRef: ActorRef<Snapshot<unknown>, { type: string }> | null;
+  controllingActorRef: AnyActorRef | null;
+  drawerType: DrawerType | null;
+  data: unknown;
 };
 
 export type DrawerEvents =
-  | { type: "OPEN_DRAWER"; payload: { actorRef: AnyActorRef } }
+  | {
+      type: "OPEN_DRAWER";
+      payload: { actorRef: AnyActorRef; data: unknown; drawerType: DrawerType };
+    }
   | { type: "CLOSE_DRAWER" };
 
 const drawerMachine = setup({
@@ -25,6 +36,8 @@ const drawerMachine = setup({
     return {
       transitionDuration: input.transitionDuration,
       controllingActorRef: null,
+      drawerType: null,
+      data: null,
     };
   },
   id: "drawer",
@@ -34,13 +47,15 @@ const drawerMachine = setup({
       on: {
         OPEN_DRAWER: {
           actions: [
-            assign({
-              controllingActorRef: ({ event }) => {
-                const {
-                  payload: { actorRef },
-                } = event;
-                return actorRef;
-              },
+            assign((args) => {
+              const { event } = args;
+              const { payload } = event;
+              const { actorRef, data, drawerType } = payload;
+              return {
+                controllingActorRef: actorRef,
+                data,
+                drawerType,
+              };
             }),
           ],
           target: "open",

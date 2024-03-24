@@ -85,7 +85,7 @@ export function makeServer({ environment = "test" } = {}) {
         return updatedPage;
       });
 
-      this.post("note/new", (schema, req) => {
+      this.post("/note/new", (schema, req) => {
         const { requestBody } = req;
         const parsedBody = JSON.parse(requestBody);
         const { pageId, noteStatusKey } = parsedBody;
@@ -96,6 +96,17 @@ export function makeServer({ environment = "test" } = {}) {
           page,
           status: NOTE_STATUS[noteStatusKey],
         });
+      });
+
+      this.patch("/note/:id", (schema, req) => {
+        const {
+          params: { id: noteId },
+          requestBody,
+        } = req;
+        const parsedBody = JSON.parse(requestBody);
+        const note = schema.notes.find(noteId);
+        const updatedNote = note.update(parsedBody);
+        return updatedNote;
       });
 
       // resets the namespace to the root
