@@ -30,11 +30,18 @@ The `pages/api` directory is mapped to `/api/*`. Files in this directory are tre
 - Fetching of the notes is done in the background for situation where the user might switch quickly from one page to the next
 - A new note can be created within any page
 - On hovering a note an options menu appears which contains an edit button and an ellipsis. On clicking the edit button, a drawer appears from the right and slides away when the drawer is closed.
+- The note title and description can be edited from within the drawer and this update reflects everywhere. Also for API calls to update the note in DB, debounce is implemented.
 
 ## Points to note
 
 - Consider two atomic states `addingNote` and `editingTitle` in a compound state `mainContent`. Is it advisable to have an `addingNote` state just to initiate some API call? `editingTitle` state seems fine in comparison because if we are in this state there is something we can do which is edit the title. And since the parent compound state `mainContent` is not a parallel state, it is not reasonable to be in `editingTitle` state as well as `addingNote` state which could possibly be the case sometimes
 - I gave up on the idea of having separate machines for say `leftSidebar` and `mainContent` because I could not figure out how to access the context of the child state machine (`leftSidebar`/`mainContent`) in React components. The only way to access that for me was to send some event which would contain the data from the context of that child state machine. But probably I was wrong. I could use the actorRef and `useSelector` hook in the component to get the context.
+
+
+## Things to know
+
+- Does all the state machines being used in a React component stop and cleared from memory when that component unmounts?
+- Is there a way to initialize a state machine where the initial state is set based on the input that is provided?
 
 ## Userful links
 

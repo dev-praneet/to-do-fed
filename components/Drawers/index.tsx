@@ -1,21 +1,18 @@
-import { ReactNode, createContext, useContext } from "react";
-import { useMachine } from "@xstate/react";
+import { ReactNode, createContext, useContext, useRef } from "react";
+import { ActorRef, MachineSnapshot, NonReducibleUnknown } from "xstate";
+import { useMachine, useSelector } from "@xstate/react";
 import cx from "classnames";
 
 import { doubleChevronRight } from "../../public/svg/images";
 import { transitionDuration } from "../../constant/constant";
 import drawerMachine, {
+  DRAWER_TYPE,
   DrawerEvents,
   DrawerMachineContext,
 } from "../../machines/drawer";
+import EditNote from "../EditNote";
 
 import style from "./style.module.scss";
-import {
-  ActorRef,
-  AnyEventObject,
-  MachineSnapshot,
-  NonReducibleUnknown,
-} from "xstate";
 
 type StateSnapshot = MachineSnapshot<
   DrawerMachineContext,
@@ -37,7 +34,7 @@ const DrawerActorContext = createContext(
 
 /**
  * DA stands for DrawerActor
- * @returns
+ * @returns { state, send, actorRef }
  */
 export const useDAContext = () => {
   const context = useContext(DrawerActorContext);
@@ -48,7 +45,6 @@ const Drawers = (props: { children: ReactNode }) => {
   const { children } = props;
 
   const [state, send, actorRef] = useMachine(drawerMachine, {
-    inspect: console.log,
     input: {
       transitionDuration,
     },
@@ -61,6 +57,14 @@ const Drawers = (props: { children: ReactNode }) => {
       type: "CLOSE_DRAWER",
     });
   }
+
+  const { drawerType } = state.context;
+
+  const drawerContent =
+    drawerType &&
+    {
+      [DRAWER_TYPE.EDIT_NOTE]: <EditNote />,
+    }[drawerType];
 
   return (
     <DrawerActorContext.Provider value={{ state, send, actorRef }}>
@@ -77,8 +81,11 @@ const Drawers = (props: { children: ReactNode }) => {
           }
         >
           <div className={style.topBar}>
-            <button onClick={closeDrawer}>{doubleChevronRight}</button>
+            <button className={style.closeButton} onClick={closeDrawer}>
+              {doubleChevronRight}
+            </button>
           </div>
+          {drawerContent}
         </div>
       )}
       {children}

@@ -4,6 +4,7 @@ import {
   MachineSnapshot,
   PromiseSnapshot,
   StateValue,
+  assertEvent,
   assign,
   fromPromise,
   raise,
@@ -123,17 +124,18 @@ const homepageMachine = setup({
   actions: {
     setActivePage: assign({
       activePage: ({ event }) => {
+        assertEvent(event, "SET_ACTIVE_PAGE");
         const {
           payload: { id },
-        } = event as TSET_ACTIVE_PAGE;
+        } = event;
         return id;
       },
     }),
     setNotesByPageId: assign({
-      notesByPageId: ({ context, event }) => {
-        const {
-          output: { notes, page },
-        } = event as TSET_NOTES_BY_PAGE_ID;
+      notesByPageId: (
+        { context },
+        { notes, page }: TSET_NOTES_BY_PAGE_ID["output"]
+      ) => {
         return { ...context.notesByPageId, [page.id]: notes };
       },
     }),
@@ -153,7 +155,14 @@ const homepageMachine = setup({
   id: "homepage",
   on: {
     SET_NOTES_BY_PAGE_ID: {
-      actions: ["setNotesByPageId"],
+      actions: [
+        {
+          type: "setNotesByPageId",
+          params: ({ event }) => {
+            return event.output;
+          },
+        },
+      ],
     },
     REMOVE_ACTOR_REF: {
       actions: [
@@ -375,6 +384,28 @@ const homepageMachine = setup({
                 return {
                   ...notesByPageId,
                   [note.page]: [...notesByPageId[note.page], note],
+                };
+              },
+            }),
+          ],
+        },
+        UPDATE_NOTE: {
+          actions: [
+            assign({
+              notesByPageId: ({ context, event }) => {
+                const { notesByPageId } = context as HomepageMachineContext;
+                const {
+                  payload: { activePage, noteId, ...rest },
+                } = event;
+
+                return {
+                  ...notesByPageId,
+                  [activePage]: notesByPageId[activePage].map((note) => {
+                    if (note.id === noteId) {
+                      return { ...note, ...rest };
+                    }
+                    return note;
+                  }),
                 };
               },
             }),
