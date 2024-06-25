@@ -24,7 +24,12 @@ export const HomepageMachineContext = createContext(
         {},
         Required<{
           leftSideBar?: "initialRender" | "idle" | "addingPage" | undefined;
-          mainContent?: "idle" | "editingTitle" | undefined;
+          mainContent?:
+            | Required<{
+                title?: "idle" | "editingTitle" | undefined;
+                notes?: {} | undefined;
+              }>
+            | undefined;
         }>,
         string,
         NonReducibleUnknown,

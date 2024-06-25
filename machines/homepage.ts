@@ -1,5 +1,6 @@
 import {
   ActorRef,
+  AnyActorRef,
   EventObject,
   MachineSnapshot,
   PromiseSnapshot,
@@ -17,6 +18,7 @@ import debounceMachine, {
 } from "./debounce";
 import callAPI from "../utils/callAPI";
 import { NoteStatusKeyTypes, NoteStatusObjectTypes } from "../utils/types";
+import apiCallMachine from "./apiCall";
 
 function getToDo(): Promise<{ pages: { name: string }[] }> {
   return callAPI({ endPoint: "/pages" });
@@ -49,12 +51,19 @@ export type Page = {
   name: string;
 };
 
+type NoteImageObj = {
+  isUploadedOnDB: boolean;
+  objectURL: string;
+  src?: string;
+};
+
 export type Note = {
   id: string;
   title: string;
   description: string;
   status: NoteStatusObjectTypes;
   page: string;
+  images?: NoteImageObj[];
 };
 
 export type HomepageMachineContext = {
@@ -83,6 +92,10 @@ export type HomepageMachineContext = {
         PromiseSnapshot<undefined, unknown>,
         never
       >;
+    };
+    updatingNotesById: {
+      // TODO remove AnyActorRef and give proper type
+      [key: string]: AnyActorRef;
     };
   };
 };
@@ -148,6 +161,7 @@ const homepageMachine = setup({
     spawnedActors: {
       notesByPages: {},
       newNoteByStatusKey: {},
+      updatingNotesById: {},
     },
     queuedTitleUpdateRef: null,
   },
@@ -278,7 +292,7 @@ const homepageMachine = setup({
       },
     },
     mainContent: {
-      initial: "idle",
+      type: "parallel",
       on: {
         FETCH_NOTES: {
           actions: [
@@ -402,8 +416,115 @@ const homepageMachine = setup({
                   ...notesByPageId,
                   [activePage]: notesByPageId[activePage].map((note) => {
                     if (note.id === noteId) {
+                      if ("images" in rest) {
+                        const images = [...rest.images];
+
+                        return {
+                          ...note,
+                          ...rest,
+                          images: images.map((image) => {
+                            const imageBlob = new Blob([image]);
+                            return {
+                              objectURL: URL.createObjectURL(imageBlob),
+                              isUploadedOnDB: false,
+                            };
+                          }),
+                        };
+                      }
                       return { ...note, ...rest };
                     }
+                    return note;
+                  }),
+                };
+              },
+              spawnedActors: ({ context, event, self, spawn }) => {
+                const { spawnedActors } = context;
+                const {
+                  payload: { activePage, noteId, ...rest },
+                } = event;
+
+                // TODO -> this is as of now a temporary way to handle the case just
+                // for image update. Need to add the case for title and description too.
+                if ("images" in rest) {
+                  const fd = new FormData();
+                  for (let i = 0; i < rest.images.length; i++) {
+                    fd.append(`images`, rest.images[i]);
+                  }
+
+                  //   TODO -> see if I can use spawnChild here in place of spawn
+                  // that way I wouldn't be saving a reference and no need to remove that reference later
+                  const spdActor = spawn(apiCallMachine, {
+                    input: {
+                      apiCallData: {
+                        endPoint: `/note/${noteId}`,
+                        method: "PATCH",
+                        body: fd,
+                      },
+                      parent: self,
+                      eventToSend: "NOTE_UPDATED_SUCCESSFULLY",
+                      relData: {
+                        activePage,
+                        noteId,
+                      },
+                    },
+                  });
+
+                  //   TODO -> see why the correct type for self in not being
+                  // inferred here while it is being inferred at the other place
+                  spdActor.subscribe({
+                    complete() {
+                      self.send({
+                        type: "REMOVE_ACTOR_REF",
+                        payload: {
+                          path: ["updatingNotesById", noteId],
+                        },
+                      });
+                    },
+                  });
+
+                  return {
+                    ...spawnedActors,
+                    updatingNotesById: {
+                      ...spawnedActors.updatingNotesById,
+                      // so here we are not keeping the information about the page
+                      //   basically assuming that the page is activePage
+                      [noteId]: spdActor,
+                    },
+                  };
+                }
+
+                return spawnedActors;
+              },
+            }),
+          ],
+        },
+        NOTE_UPDATED_SUCCESSFULLY: {
+          actions: [
+            assign({
+              notesByPageId: ({ context, event }) => {
+                const { notesByPageId } = context as HomepageMachineContext;
+                const {
+                  payload: { output, relData },
+                } = event;
+                const { activePage, noteId } = relData;
+                const { note: updatedNote } = output;
+
+                return {
+                  ...notesByPageId,
+                  [activePage]: notesByPageId[activePage].map((note) => {
+                    if (note.id === noteId) {
+                      return {
+                        ...note,
+                        images: note.images?.map((image, index) => {
+                          return {
+                            ...image,
+                            isUploadedOnDB: true,
+                            src: updatedNote.images[index],
+                          };
+                        }),
+                      };
+                    }
+
                     return note;
                   }),
                 };
@@ -413,57 +534,63 @@ const homepageMachine = setup({
         },
       },
       states: {
-        idle: {
-          on: {
-            EDIT_TITLE: {
-              target: "editingTitle",
-            },
-          },
-        },
-        editingTitle: {
-          on: {
-            UPDATE_TITLE: {
-              actions: [
-                ({ event, context }) => {
-                  const { activePage, queuedTitleUpdateRef } = context;
-                  if (queuedTitleUpdateRef) {
-                    queuedTitleUpdateRef.send({
-                      type: "UPDATE",
-                      title: event.payload.title,
-                      activePage,
-                    });
-                  }
+        title: {
+          initial: "idle",
+          states: {
+            idle: {
+              on: {
+                EDIT_TITLE: {
+                  target: "editingTitle",
                 },
-                assign({
-                  pages: ({ context, event }) => {
-                    const { pages, activePage } = context;
-                    const {
-                      payload: { title },
-                    } = event;
-
-                    const updatedPages = pages.map((page) => {
-                      if (page.id === activePage) {
-                        return { ...page, name: title };
+              },
+            },
+            editingTitle: {
+              on: {
+                UPDATE_TITLE: {
+                  actions: [
+                    ({ event, context }) => {
+                      const { activePage, queuedTitleUpdateRef } = context;
+                      if (queuedTitleUpdateRef) {
+                        queuedTitleUpdateRef.send({
+                          type: "UPDATE",
+                          title: event.payload.title,
+                          activePage,
+                        });
                       }
-                      return page;
-                    });
+                    },
+                    assign({
+                      pages: ({ context, event }) => {
+                        const { pages, activePage } = context;
+                        const {
+                          payload: { title },
+                        } = event;
 
-                    return updatedPages;
-                  },
-                  queuedTitleUpdateRef: ({ context, event, spawn }) => {
-                    const { activePage, queuedTitleUpdateRef } = context;
-                    return (
-                      queuedTitleUpdateRef ||
-                      spawn(debounceMachine, {
-                        input: { ...event.payload, activePage },
-                      })
-                    );
-                  },
-                }),
-              ],
+                        const updatedPages = pages.map((page) => {
+                          if (page.id === activePage) {
+                            return { ...page, name: title };
+                          }
+                          return page;
+                        });
+
+                        return updatedPages;
+                      },
+                      queuedTitleUpdateRef: ({ context, event, spawn }) => {
+                        const { activePage, queuedTitleUpdateRef } = context;
+                        return (
+                          queuedTitleUpdateRef ||
+                          spawn(debounceMachine, {
+                            input: { ...event.payload, activePage },
+                          })
+                        );
+                      },
+                    }),
+                  ],
+                },
+              },
             },
           },
         },
+        notes: {},
       },
     },
   },
