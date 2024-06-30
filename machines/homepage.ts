@@ -173,7 +173,18 @@ const homepageMachine = setup({
         {
           type: "setNotesByPageId",
           params: ({ event }) => {
-            return event.output;
+            const { output } = event;
+            return {
+              ...output,
+              notes: output.notes.map((note) => {
+                if ("images" in note) {
+                  note.images = note.images?.map((image) => {
+                    return { ...image, isUploadedOnDB: true };
+                  });
+                }
+                return note;
+              }),
+            };
           },
         },
       ],
@@ -519,7 +530,7 @@ const homepageMachine = setup({
                           return {
                             ...image,
                             isUploadedOnDB: true,
-                            src: updatedNote.images[index],
+                            src: updatedNote.images[index].src,
                           };
                         }),
                       };

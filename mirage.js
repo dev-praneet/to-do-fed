@@ -3,7 +3,6 @@ import {
   Model,
   hasMany,
   belongsTo,
-  JSONAPISerializer,
   RestSerializer,
 } from "miragejs";
 import { NOTE_STATUS } from "./constant/constant";
@@ -109,7 +108,7 @@ export function makeServer({ environment = "test" } = {}) {
                 images: requestBody.getAll("images").map((image) => {
                   const imageBlob = new Blob([image]);
 
-                  return URL.createObjectURL(imageBlob);
+                  return { src: URL.createObjectURL(imageBlob) };
                 }),
               }
             : JSON.parse(requestBody);
