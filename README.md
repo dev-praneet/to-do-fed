@@ -31,6 +31,7 @@ The `pages/api` directory is mapped to `/api/*`. Files in this directory are tre
 - A new note can be created within any page
 - On hovering a note an options menu appears which contains an edit button and an ellipsis. On clicking the edit button, a drawer appears from the right and slides away when the drawer is closed.
 - The note title and description can be edited from within the drawer and this update reflects everywhere. Also for API calls to update the note in DB, debounce is implemented.
+- Images can be uploaded in a note within the drawer. The image is visible as soon that the user selects the image but until the images are save in DB, the opacity of images is a bit reduced to give a visual feedback.
 
 ## Points to note
 

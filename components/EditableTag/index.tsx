@@ -33,6 +33,9 @@ function EditableTag(props: EditableTagProps) {
   }
 
   function onInput(event: KeyboardEvent) {
+    // TODO -> checking it after some days
+    // this doesn't seem to be a good idea to handle
+    // the API call in a separate machine
     send({
       type: "UPDATE_TEXT",
       payload: {

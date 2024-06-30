@@ -3,7 +3,6 @@ import {
   Model,
   hasMany,
   belongsTo,
-  JSONAPISerializer,
   RestSerializer,
 } from "miragejs";
 import { NOTE_STATUS } from "./constant/constant";
@@ -103,9 +102,20 @@ export function makeServer({ environment = "test" } = {}) {
           params: { id: noteId },
           requestBody,
         } = req;
-        const parsedBody = JSON.parse(requestBody);
+        const parsedBody =
+          requestBody instanceof FormData
+            ? {
+                images: requestBody.getAll("images").map((image) => {
+                  const imageBlob = new Blob([image]);
+
+                  return { src: URL.createObjectURL(imageBlob) };
+                }),
+              }
+            : JSON.parse(requestBody);
+
         const note = schema.notes.find(noteId);
         const updatedNote = note.update(parsedBody);
+
         return updatedNote;
       });
 

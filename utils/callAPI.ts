@@ -55,7 +55,7 @@ const callAPI = (arg: CallApiArguments) => {
   }
 
   if (body) {
-    options.body = JSON.stringify(body);
+    options.body = body instanceof FormData ? body : JSON.stringify(body);
   }
 
   return fetch(newUrl, options).then(

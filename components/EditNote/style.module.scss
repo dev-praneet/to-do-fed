@@ -1,17 +1,39 @@
 @use "styles/theme" as *;
 
 .container {
-    margin-top: 30px;
+    display: flex;
+    flex-direction: column;
     padding-inline: 30px;
+    height: 100%;
+
+    overflow: auto;
 }
 
 .title {
     font-weight: bold;
     font-size: 1.2rem;
     color: #ccb8b6;
+    margin-top: 20px;
 }
 
 .description {
     margin-top: 20px;
     color: #ccb8b6;
+}
+
+.imageWrapper {
+    margin-top: 30px;
+    
+    img {
+        max-width: 100%;
+    }
+
+    & + & {
+        margin-top: 30px;
+    }
+}
+
+.noteContent {
+    flex: 1 0 0;
+    overflow-y: auto;
 }

@@ -85,7 +85,7 @@ const Drawers = (props: { children: ReactNode }) => {
               {doubleChevronRight}
             </button>
           </div>
-          {drawerContent}
+          <div className={style.drawerContent}>{drawerContent}</div>
         </div>
       )}
       {children}
