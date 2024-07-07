@@ -1,6 +1,5 @@
 import {
   ActorRef,
-  AnyActorRef,
   EventObject,
   MachineSnapshot,
   PromiseSnapshot,
@@ -18,7 +17,7 @@ import debounceMachine, {
 } from "./debounce";
 import callAPI from "../utils/callAPI";
 import { NoteStatusKeyTypes, NoteStatusObjectTypes } from "../utils/types";
-import apiCallMachine from "./apiCall";
+import apiCallMachine, { APIMachineContext, APIMachineEvent } from "./apiCall";
 
 function getToDo(): Promise<{ pages: { name: string }[] }> {
   return callAPI({ endPoint: "/pages" });
@@ -93,10 +92,26 @@ export type HomepageMachineContext = {
         never
       >;
     };
-    updatingNotesById: {
-      // TODO remove AnyActorRef and give proper type
-      [key: string]: AnyActorRef;
+    /* this keys within this object will be JSON stringified version of 
+    the array [pageId, noteId, title/description/images] */
+    updatingNotes: {
+      // TODO update type to remove the type errors
+      [key: string]: ActorRef<
+        MachineSnapshot<
+          APIMachineContext,
+          APIMachineEvent,
+          {},
+          StateValue,
+          string,
+          undefined,
+          any
+        >,
+        APIMachineEvent
+      >;
     };
+  };
+  tempNoteDescription: {
+    [key: string]: string;
   };
 };
 
@@ -127,6 +142,51 @@ export type HomepageMachineEvents =
       payload: {
         path: string[];
       };
+    }
+  | {
+      type: "UPDATE_NOTE_DESCRIPTION";
+      payload: {
+        noteId: string;
+        dataToUpdate: {
+          description: string;
+        };
+      };
+    }
+  | {
+      type: "SAVE_NOTE_DESCRIPTION";
+      payload: {
+        activePage: string;
+        noteId: string;
+      };
+    }
+  | {
+      type: "SYNC_TEMP_DESCRIPTION";
+      payload: {
+        noteId: string;
+      };
+    }
+  | {
+      type: "NOTE_UPDATED_SUCCESSFULLY";
+      payload: {
+        relData: {
+          type: "description" | "images";
+          activePage: string;
+          noteId: string;
+        };
+        output: { note: Note };
+      };
+    }
+  | {
+      type: "UPDATE_NOTE";
+      payload: {
+        activePage: string;
+        noteId: string;
+        dataToUpdate:
+          | {
+              title: string;
+            }
+          | { images: FileList | null };
+      };
     };
 
 const homepageMachine = setup({
@@ -152,6 +212,229 @@ const homepageMachine = setup({
         return { ...context.notesByPageId, [page.id]: notes };
       },
     }),
+    saveNoteDescription: assign(({ context, event, spawn, self }) => {
+      const { notesByPageId, spawnedActors, tempNoteDescription } = context;
+      assertEvent(event, "SAVE_NOTE_DESCRIPTION");
+      const {
+        payload: { activePage, noteId },
+      } = event;
+      const { [JSON.stringify([activePage, noteId])]: description } =
+        tempNoteDescription;
+
+      if (!description) {
+        return {};
+      }
+
+      const spdActor = spawn(apiCallMachine, {
+        input: {
+          apiCallData: {
+            endPoint: `/note/${noteId}`,
+            method: "PATCH",
+            body: { description },
+          },
+          parent: self,
+          eventToSend: "NOTE_UPDATED_SUCCESSFULLY",
+          relData: {
+            activePage,
+            noteId,
+            type: "description",
+          },
+        },
+      });
+
+      const key = JSON.stringify([activePage, noteId, "description"]);
+
+      spdActor.subscribe({
+        complete() {
+          self.send({
+            type: "REMOVE_ACTOR_REF",
+            payload: {
+              path: ["updatingNotes", key],
+            },
+          });
+        },
+      });
+
+      return {
+        notesByPageId: {
+          ...notesByPageId,
+          [activePage]: notesByPageId[activePage].map((note) => {
+            if (note.id === noteId) {
+              return {
+                ...note,
+                description,
+              };
+            }
+
+            return note;
+          }),
+        },
+        spawnedActors: {
+          ...spawnedActors,
+          updatingNotes: {
+            ...spawnedActors.updatingNotes,
+            key: spdActor,
+          },
+        },
+      };
+    }),
+    syncTempDescription: assign({
+      tempNoteDescription: ({ context, event }) => {
+        assertEvent(event, "SYNC_TEMP_DESCRIPTION");
+        const { payload } = event;
+        const { noteId } = payload;
+        const { tempNoteDescription, activePage, notesByPageId } = context;
+
+        if (!activePage) {
+          return tempNoteDescription;
+        }
+
+        const { description } =
+          notesByPageId[activePage].find((note) => note.id === noteId) || {};
+
+        if (!description) {
+          return tempNoteDescription;
+        }
+
+        const key = JSON.stringify([activePage, noteId]);
+
+        return { ...tempNoteDescription, [key]: description };
+      },
+    }),
+    updateNoteSuccessfully: assign({
+      notesByPageId: ({ context, event }) => {
+        const { notesByPageId } = context;
+        assertEvent(event, "NOTE_UPDATED_SUCCESSFULLY");
+        const {
+          payload: { output, relData },
+        } = event;
+        const { activePage, noteId, type } = relData;
+        const { note: updatedNote } = output;
+
+        return {
+          ...notesByPageId,
+          [activePage]: notesByPageId[activePage].map((note) => {
+            if (note.id === noteId) {
+              if (type === "images") {
+                return {
+                  ...note,
+                  images: note.images?.map((image, index) => {
+                    return {
+                      ...image,
+                      isUploadedOnDB: true,
+                      src: updatedNote.images[index].src,
+                    };
+                  }),
+                };
+              }
+
+              if (type === "description") {
+                return {
+                  ...note,
+                  description: updatedNote.description,
+                };
+              }
+
+              return note;
+            }
+
+            return note;
+          }),
+        };
+      },
+    }),
+    updateNote: assign({
+      notesByPageId: ({ context, event }) => {
+        const { notesByPageId } = context;
+        assertEvent(event, "UPDATE_NOTE");
+        const {
+          payload: { activePage, noteId, dataToUpdate },
+        } = event;
+
+        return {
+          ...notesByPageId,
+          [activePage]: notesByPageId[activePage].map((note) => {
+            if (note.id === noteId) {
+              if ("images" in dataToUpdate && dataToUpdate.images) {
+                const images = [...dataToUpdate.images];
+
+                return {
+                  ...note,
+                  ...dataToUpdate,
+                  images: images.map((image) => {
+                    const imageBlob = new Blob([image]);
+                    return {
+                      objectURL: URL.createObjectURL(imageBlob),
+                      isUploadedOnDB: false,
+                    };
+                  }),
+                };
+              }
+              return { ...note, ...(dataToUpdate as { title: string }) };
+            }
+            return note;
+          }),
+        };
+      },
+      spawnedActors: ({ context, event, self, spawn }) => {
+        const { spawnedActors } = context;
+        assertEvent(event, "UPDATE_NOTE");
+        const {
+          payload: { activePage, noteId, dataToUpdate, ...rest },
+        } = event;
+
+        // TODO -> this is as of now a temporary way to handle the case just
+        // for image update. Need to add the case for title too.
+        if ("images" in dataToUpdate && dataToUpdate.images) {
+          const fd = new FormData();
+          for (let i = 0; i < dataToUpdate.images.length; i++) {
+            fd.append(`images`, dataToUpdate.images[i]);
+          }
+
+          //   TODO -> see if I can use spawnChild here in place of spawn
+          // that way I wouldn't be saving a reference and no need to remove that reference later
+          const spdActor = spawn(apiCallMachine, {
+            input: {
+              apiCallData: {
+                endPoint: `/note/${noteId}`,
+                method: "PATCH",
+                body: fd,
+              },
+              parent: self,
+              eventToSend: "NOTE_UPDATED_SUCCESSFULLY",
+              relData: {
+                activePage,
+                noteId,
+                type: "images",
+              },
+            },
+          });
+
+          const key = JSON.stringify([activePage, noteId, "images"]);
+
+          spdActor.subscribe({
+            complete() {
+              self.send({
+                type: "REMOVE_ACTOR_REF",
+                payload: {
+                  path: ["updatingNotes", key],
+                },
+              });
+            },
+          });
+
+          return {
+            ...spawnedActors,
+            updatingNotes: {
+              ...spawnedActors.updatingNotes,
+              key: spdActor,
+            },
+          };
+        }
+
+        return spawnedActors;
+      },
+    }),
   },
 }).createMachine({
   context: {
@@ -161,9 +444,10 @@ const homepageMachine = setup({
     spawnedActors: {
       notesByPages: {},
       newNoteByStatusKey: {},
-      updatingNotesById: {},
+      updatingNotes: {},
     },
     queuedTitleUpdateRef: null,
+    tempNoteDescription: {} as { [key: string]: string },
   },
   type: "parallel",
   id: "homepage",
@@ -415,133 +699,32 @@ const homepageMachine = setup({
           ],
         },
         UPDATE_NOTE: {
+          actions: ["updateNote"],
+        },
+        UPDATE_NOTE_DESCRIPTION: {
           actions: [
             assign({
-              notesByPageId: ({ context, event }) => {
-                const { notesByPageId } = context as HomepageMachineContext;
-                const {
-                  payload: { activePage, noteId, ...rest },
-                } = event;
+              tempNoteDescription: ({ context, event }) => {
+                const { tempNoteDescription, activePage } = context;
+                const { noteId, dataToUpdate } = event.payload;
+                const key = JSON.stringify([activePage, noteId]);
 
                 return {
-                  ...notesByPageId,
-                  [activePage]: notesByPageId[activePage].map((note) => {
-                    if (note.id === noteId) {
-                      if ("images" in rest) {
-                        const images = [...rest.images];
-
-                        return {
-                          ...note,
-                          ...rest,
-                          images: images.map((image) => {
-                            const imageBlob = new Blob([image]);
-                            return {
-                              objectURL: URL.createObjectURL(imageBlob),
-                              isUploadedOnDB: false,
-                            };
-                          }),
-                        };
-                      }
-                      return { ...note, ...rest };
-                    }
-                    return note;
-                  }),
+                  ...tempNoteDescription,
+                  [key]: dataToUpdate.description,
                 };
-              },
-              spawnedActors: ({ context, event, self, spawn }) => {
-                const { spawnedActors } = context;
-                const {
-                  payload: { activePage, noteId, ...rest },
-                } = event;
-
-                // TODO -> this is as of now a temporary way to handle the case just
-                // for image update. Need to add the case for title and description too.
-                if ("images" in rest) {
-                  const fd = new FormData();
-                  for (let i = 0; i < rest.images.length; i++) {
-                    fd.append(`images`, rest.images[i]);
-                  }
-
-                  //   TODO -> see if I can use spawnChild here in place of spawn
-                  // that way I wouldn't be saving a reference and no need to remove that reference later
-                  const spdActor = spawn(apiCallMachine, {
-                    input: {
-                      apiCallData: {
-                        endPoint: `/note/${noteId}`,
-                        method: "PATCH",
-                        body: fd,
-                      },
-                      parent: self,
-                      eventToSend: "NOTE_UPDATED_SUCCESSFULLY",
-                      relData: {
-                        activePage,
-                        noteId,
-                      },
-                    },
-                  });
-
-                  //   TODO -> see why the correct type for self in not being
-                  // inferred here while it is being inferred at the other place
-                  spdActor.subscribe({
-                    complete() {
-                      self.send({
-                        type: "REMOVE_ACTOR_REF",
-                        payload: {
-                          path: ["updatingNotesById", noteId],
-                        },
-                      });
-                    },
-                  });
-
-                  return {
-                    ...spawnedActors,
-                    updatingNotesById: {
-                      ...spawnedActors.updatingNotesById,
-                      // so here we are not keeping the information about the page
-                      //   basically assuming that the page is activePage
-                      [noteId]: spdActor,
-                    },
-                  };
-                }
-
-                return spawnedActors;
               },
             }),
           ],
         },
+        SAVE_NOTE_DESCRIPTION: {
+          actions: ["saveNoteDescription"],
+        },
+        SYNC_TEMP_DESCRIPTION: {
+          actions: ["syncTempDescription"],
+        },
         NOTE_UPDATED_SUCCESSFULLY: {
-          actions: [
-            assign({
-              notesByPageId: ({ context, event }) => {
-                const { notesByPageId } = context as HomepageMachineContext;
-                const {
-                  payload: { output, relData },
-                } = event;
-                const { activePage, noteId } = relData;
-                const { note: updatedNote } = output;
-
-                return {
-                  ...notesByPageId,
-                  [activePage]: notesByPageId[activePage].map((note) => {
-                    if (note.id === noteId) {
-                      return {
-                        ...note,
-                        images: note.images?.map((image, index) => {
-                          return {
-                            ...image,
-                            isUploadedOnDB: true,
-                            src: updatedNote.images[index].src,
-                          };
-                        }),
-                      };
-                    }
-
-                    return note;
-                  }),
-                };
-              },
-            }),
-          ],
+          actions: ["updateNoteSuccessfully"],
         },
       },
       states: {

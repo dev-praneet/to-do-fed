@@ -94,9 +94,6 @@ function MainContent(props: NotesContainerProps) {
                     return (
                       <div key={note.id} className={style.note}>
                         <h3>{note.title}</h3>
-                        <p className={style.noteDescription}>
-                          {note.description}
-                        </p>
 
                         <div className={style.noteOptions}>
                           <button

@@ -1,10 +1,13 @@
+import { useCallback } from "react";
 import { useSelector } from "@xstate/react";
+import { EditorState } from "prosemirror-state";
 
 import { EditNoteActionPayload } from "../../container/Homepage/MainContent";
 import { HomepageMachineContext } from "../../machines/homepage";
 import { useDAContext } from "../Drawers";
 import callAPI from "../../utils/callAPI";
 import EditableTag from "../EditableTag";
+import RichTextEditor from "../RichTextEditor";
 
 import style from "./style.module.scss";
 
@@ -22,8 +25,10 @@ function EditNote() {
     });
 
   const {
-    context: { activePage, notesByPageId },
+    context: { activePage, notesByPageId, tempNoteDescription: tempDescObj },
   } = homepageMachineSnapshot;
+  const key = JSON.stringify([activePage, noteId]);
+  const tempDescription = tempDescObj[key];
 
   const notesOnPage = notesByPageId[activePage!];
   const note = notesOnPage.find((note) => note.id === noteId);
@@ -35,18 +40,9 @@ function EditNote() {
       payload: {
         activePage,
         noteId,
-        title: text,
-      },
-    });
-  }
-
-  function onDescriptionInput(text: string) {
-    controllingActorRef?.send({
-      type: "UPDATE_NOTE",
-      payload: {
-        activePage,
-        noteId,
-        description: text,
+        dataToUpdate: {
+          title: text,
+        },
       },
     });
   }
@@ -57,7 +53,7 @@ function EditNote() {
       payload: {
         activePage,
         noteId,
-        images: event.target.files,
+        dataToUpdate: { images: event.target.files },
       },
     });
   }
@@ -70,18 +66,48 @@ function EditNote() {
     });
   }
 
-  function syncDescriptionWithBackend(_: unknown, params2: { text: string }) {
-    callAPI({
-      endPoint: `/note/${noteId}`,
-      method: "PATCH",
-      body: { description: params2.text },
+  const handleDescriptionUpdate = useCallback(
+    function (editorState: EditorState) {
+      const { doc } = editorState.toJSON();
+
+      controllingActorRef?.send({
+        type: "UPDATE_NOTE_DESCRIPTION",
+        payload: {
+          noteId,
+          dataToUpdate: {
+            description: JSON.stringify(doc),
+          },
+        },
+      });
+    },
+    [noteId, controllingActorRef]
+  );
+
+  function handleDescriptionSave() {
+    controllingActorRef?.send({
+      type: "SAVE_NOTE_DESCRIPTION",
+      payload: {
+        activePage,
+        noteId,
+      },
     });
   }
+
+  const syncTempDescription = useCallback(
+    function () {
+      controllingActorRef?.send({
+        type: "SYNC_TEMP_DESCRIPTION",
+        payload: {
+          noteId,
+        },
+      });
+    },
+    [noteId, controllingActorRef]
+  );
 
   return (
     <div className={style.container}>
       <div>
-        <input type="file" name="image" multiple onChange={onImageUpload} />
         <EditableTag
           text={title}
           syncWithBackend={syncTitleWithBackend}
@@ -91,11 +117,20 @@ function EditNote() {
       </div>
 
       <div className={style.noteContent}>
-        <EditableTag
-          text={description}
-          syncWithBackend={syncDescriptionWithBackend}
-          onInput={onDescriptionInput}
-          className={style.description}
+        <RichTextEditor
+          handleContentUpdate={handleDescriptionUpdate}
+          handleContentSave={handleDescriptionSave}
+          syncTempDescription={syncTempDescription}
+          tempDescription={tempDescription}
+          savedDescription={description}
+        />
+
+        <input
+          type="file"
+          name="image"
+          multiple
+          onChange={onImageUpload}
+          className={style.imageInput}
         />
         <div>
           {images?.map((image) => {

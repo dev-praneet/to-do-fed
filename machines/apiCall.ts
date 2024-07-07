@@ -1,15 +1,22 @@
-import { AnyActorRef, fromPromise, setup } from "xstate";
+import { AnyActorRef, EventObject, fromPromise, setup } from "xstate";
 
 import callAPI, { CallApiArguments } from "../utils/callAPI";
 
+type APIMachineInput = {
+  apiCallData: CallApiArguments;
+  parent: AnyActorRef;
+  eventToSend: string;
+  relData: unknown;
+};
+
+export type APIMachineContext = APIMachineInput;
+
+export type APIMachineEvent = EventObject;
+
 const apiCallMachine = setup({
   types: {} as {
-    input: {
-      apiCallData: CallApiArguments;
-      parent: AnyActorRef;
-      eventToSend: string;
-      relData: unknown;
-    };
+    input: APIMachineInput;
+    context: APIMachineContext;
   },
   actions: {},
   actors: {

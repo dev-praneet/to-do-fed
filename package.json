@@ -12,6 +12,8 @@
     "@xstate/react": "^4.0.1",
     "classnames": "^2.3.2",
     "next": "^13.4.12",
+    "prosemirror-example-setup": "^1.2.2",
+    "prosemirror-schema-basic": "^1.2.2",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "xstate": "^5.3.0"

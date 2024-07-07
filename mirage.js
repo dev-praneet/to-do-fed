@@ -9,6 +9,8 @@ import { NOTE_STATUS } from "./constant/constant";
 
 const ApplicationSerializer = RestSerializer.extend({});
 
+const initialDescription = '{"type":"doc","content":[{"type":"paragraph"}]}';
+
 export function makeServer({ environment = "test" } = {}) {
   const server = createServer({
     environment,
@@ -41,7 +43,7 @@ export function makeServer({ environment = "test" } = {}) {
         Array.from({ length: 8 }).forEach((_, index) => {
           server.create("note", {
             title: `${page} note ${index + 1}`,
-            description: `description - ${index + 1}`,
+            description: initialDescription,
             page: createdPage,
             status:
               Object.values(NOTE_STATUS)[
@@ -91,7 +93,7 @@ export function makeServer({ environment = "test" } = {}) {
         const page = schema.pages.find(pageId);
         return schema.notes.create({
           title: "",
-          description: "",
+          description: initialDescription,
           page,
           status: NOTE_STATUS[noteStatusKey],
         });
