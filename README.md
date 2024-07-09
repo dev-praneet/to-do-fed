@@ -30,13 +30,16 @@ The `pages/api` directory is mapped to `/api/*`. Files in this directory are tre
 - Fetching of the notes is done in the background for situation where the user might switch quickly from one page to the next
 - A new note can be created within any page
 - On hovering a note an options menu appears which contains an edit button and an ellipsis. On clicking the edit button, a drawer appears from the right and slides away when the drawer is closed.
-- The note title and description can be edited from within the drawer and this update reflects everywhere. Also for API calls to update the note in DB, debounce is implemented.
-- Images can be uploaded in a note within the drawer. The image is visible as soon that the user selects the image but until the images are save in DB, the opacity of images is a bit reduced to give a visual feedback.
+- The note title can be edited from within the drawer and this update reflects everywhere. Moreover, for API calls to update the note title in DB, debounce is implemented.
+- A rich text editor has been added to add the description in a note. The menubar in the editor is shown only when the editor is in focus. Two CTA buttons which are 'save' and 'cancel' are shown when a user has interacted in some way with the editor and after that has not clicked either 'save' or 'cancel' button.
+- prosemirror library is used for the rich text editor.
+- Images can be uploaded in a note within the drawer. The images are visible as soon as the user selects the images but until the images are saved in the DB, the opacity of images is a bit reduced to give a visual feedback.
 
 ## Points to note
 
 - Consider two atomic states `addingNote` and `editingTitle` in a compound state `mainContent`. Is it advisable to have an `addingNote` state just to initiate some API call? `editingTitle` state seems fine in comparison because if we are in this state there is something we can do which is edit the title. And since the parent compound state `mainContent` is not a parallel state, it is not reasonable to be in `editingTitle` state as well as `addingNote` state which could possibly be the case sometimes
 - I gave up on the idea of having separate machines for say `leftSidebar` and `mainContent` because I could not figure out how to access the context of the child state machine (`leftSidebar`/`mainContent`) in React components. The only way to access that for me was to send some event which would contain the data from the context of that child state machine. But probably I was wrong. I could use the actorRef and `useSelector` hook in the component to get the context.
+- When we spawn an actor within a state machine and try to access that actor's context or state within a React component, it is very difficult to use the default useSelector hook provided by the `@xstate/react` library as that actor is not always available and we can't call the hook conditionally. So, it involves writing the custom hook which allows for `undefined` value to be passed in the place for the `actorRef`.
 
 
 ## Things to know

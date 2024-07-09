@@ -65,6 +65,10 @@ export type Note = {
   images?: NoteImageObj[];
 };
 
+/**
+ * tempNoteDescription - key is the JSON stringified version of [activePage, noteId]
+ * showCTAFlag - key is the JSON stringified version of [activePage, noteId, 'description'/'comment']
+ */
 export type HomepageMachineContext = {
   activePage: null | string;
   pages: Page[];
@@ -112,6 +116,9 @@ export type HomepageMachineContext = {
   };
   tempNoteDescription: {
     [key: string]: string;
+  };
+  showCTAFlag: {
+    [key: string]: boolean;
   };
 };
 
@@ -187,6 +194,15 @@ export type HomepageMachineEvents =
             }
           | { images: FileList | null };
       };
+    }
+  | {
+      type: "UPDATE_SHOW_CTA";
+      payload: {
+        type: "description" | "comment";
+        activePage: string;
+        noteId: string;
+        value: boolean;
+      };
     };
 
 const homepageMachine = setup({
@@ -247,11 +263,21 @@ const homepageMachine = setup({
       spdActor.subscribe({
         complete() {
           self.send({
-            type: "REMOVE_ACTOR_REF",
+            type: "UPDATE_SHOW_CTA",
             payload: {
-              path: ["updatingNotes", key],
+              type: "description",
+              activePage,
+              noteId,
+              value: false,
             },
           });
+
+           self.send({
+             type: "REMOVE_ACTOR_REF",
+             payload: {
+               path: ["updatingNotes", key],
+             },
+           });
         },
       });
 
@@ -273,7 +299,7 @@ const homepageMachine = setup({
           ...spawnedActors,
           updatingNotes: {
             ...spawnedActors.updatingNotes,
-            key: spdActor,
+            [key]: spdActor,
           },
         },
       };
@@ -448,6 +474,7 @@ const homepageMachine = setup({
     },
     queuedTitleUpdateRef: null,
     tempNoteDescription: {} as { [key: string]: string },
+    showCTAFlag: {},
   },
   type: "parallel",
   id: "homepage",
@@ -725,6 +752,24 @@ const homepageMachine = setup({
         },
         NOTE_UPDATED_SUCCESSFULLY: {
           actions: ["updateNoteSuccessfully"],
+        },
+        UPDATE_SHOW_CTA: {
+          actions: [
+            assign({
+              showCTAFlag: ({ context, event }) => {
+                const { showCTAFlag } = context;
+                const { payload } = event;
+                const { type, activePage, noteId, value } = payload;
+
+                const key = JSON.stringify([ activePage, noteId, type]);
+
+                return {
+                  ...showCTAFlag,
+                  [key]: value,
+                };
+              },
+            }),
+          ],
         },
       },
       states: {

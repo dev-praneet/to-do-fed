@@ -8,8 +8,11 @@ import { useDAContext } from "../Drawers";
 import callAPI from "../../utils/callAPI";
 import EditableTag from "../EditableTag";
 import RichTextEditor from "../RichTextEditor";
+import useCustomSelector from "../../hooks/useCustomSelector";
 
 import style from "./style.module.scss";
+
+const basicSelector = <T,>(state: T) => state;
 
 function EditNote() {
   const {
@@ -25,7 +28,13 @@ function EditNote() {
     });
 
   const {
-    context: { activePage, notesByPageId, tempNoteDescription: tempDescObj },
+    context: {
+      activePage,
+      notesByPageId,
+      tempNoteDescription: tempDescObj,
+      showCTAFlag,
+      spawnedActors,
+    },
   } = homepageMachineSnapshot;
   const key = JSON.stringify([activePage, noteId]);
   const tempDescription = tempDescObj[key];
@@ -33,6 +42,19 @@ function EditNote() {
   const notesOnPage = notesByPageId[activePage!];
   const note = notesOnPage.find((note) => note.id === noteId);
   const { title, description, images } = note!;
+
+  const ctaFlagKey = JSON.stringify([activePage, noteId, "description"]);
+
+  const { [ctaFlagKey]: ctaFlagValue } = showCTAFlag;
+
+  const { updatingNotes } = spawnedActors;
+  const {
+    [JSON.stringify([activePage, noteId, "description"])]: desUpdateActor,
+  } = updatingNotes;
+
+  const desUpdateSnapshot = useCustomSelector(desUpdateActor, basicSelector);
+
+  const isSavingInProgress = desUpdateSnapshot?.matches("fetching");
 
   function onTitleInput(text: string) {
     controllingActorRef?.send({
@@ -105,6 +127,36 @@ function EditNote() {
     [noteId, controllingActorRef]
   );
 
+  const showCTA = useCallback(
+    function () {
+      controllingActorRef?.send({
+        type: "UPDATE_SHOW_CTA",
+        payload: {
+          type: "description",
+          activePage,
+          noteId,
+          value: true,
+        },
+      });
+    },
+    [activePage, noteId, controllingActorRef]
+  );
+
+  const hideCTA = useCallback(
+    function () {
+      controllingActorRef?.send({
+        type: "UPDATE_SHOW_CTA",
+        payload: {
+          type: "description",
+          activePage,
+          noteId,
+          value: false,
+        },
+      });
+    },
+    [activePage, noteId, controllingActorRef]
+  );
+
   return (
     <div className={style.container}>
       <div>
@@ -118,11 +170,15 @@ function EditNote() {
 
       <div className={style.noteContent}>
         <RichTextEditor
-          handleContentUpdate={handleDescriptionUpdate}
-          handleContentSave={handleDescriptionSave}
-          syncTempDescription={syncTempDescription}
           tempDescription={tempDescription}
           savedDescription={description}
+          handleContentSave={handleDescriptionSave}
+          handleContentUpdate={handleDescriptionUpdate}
+          syncTempDescription={syncTempDescription}
+          ctaFlagValue={ctaFlagValue}
+          showCTA={showCTA}
+          hideCTA={hideCTA}
+          isSavingInProgress={isSavingInProgress}
         />
 
         <input
