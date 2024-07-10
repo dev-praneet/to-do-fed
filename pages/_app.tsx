@@ -4,6 +4,7 @@ import Drawers from "../components/Drawers";
 import { makeServer } from "../mirage";
 
 import "../styles/index.scss";
+import "../styles/editorStyle.scss";
 
 if (process.env.NODE_ENV === "development") {
   makeServer({ environment: "development" });
